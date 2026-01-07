@@ -1,0 +1,29 @@
+# Autonomous Game Development Agent - Dependencies
+# Python 3.10+ required
+
+# Claude Agent SDK (when available via pip)
+# anthropic>=0.20.0
+
+# Async support
+asyncio-compat>=0.1.0
+
+# Vector database for RAG
+chromadb>=0.4.0
+faiss-cpu>=1.7.4
+
+# Embeddings
+sentence-transformers>=2.2.0
+
+# Configuration and environment
+python-dotenv>=1.0.0
+pyyaml>=6.0
+
+# Utilities
+tenacity>=8.2.0  # For retries with backoff
+rich>=13.0.0     # For better logging/output
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+mypy>=1.5.0
