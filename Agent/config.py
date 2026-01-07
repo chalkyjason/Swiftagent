@@ -22,7 +22,7 @@ class ModelTier(Enum):
 @dataclass
 class WorkspaceConfig:
     """Configuration for the agent workspace."""
-    root_path: Path = field(default_factory=lambda: Path.home() / "Development" / "AgentWorkspace")
+    root_path: Path = field(default_factory=lambda: Path.cwd().parent if Path.cwd().name == "Agent" else Path.cwd())
     packages_dir: str = "Packages"
     apps_dir: str = "Apps"
     checkpoint_dir: str = ".agent_checkpoints"
