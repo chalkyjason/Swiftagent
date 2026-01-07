@@ -373,8 +373,10 @@ class BacklogManager:
                 ))
 
         # Sort by priority (higher first) then by order in file
-        tasks.sort(key=lambda t: (-t.priority, tasks.index(t)))
-        return tasks
+        # Use enumerate to capture original indices before sorting
+        indexed_tasks = list(enumerate(tasks))
+        indexed_tasks.sort(key=lambda x: (-x[1].priority, x[0]))
+        return [t for _, t in indexed_tasks]
 
     def update_backlog(self, tasks: List[TaskCheckpoint]) -> None:
         """Update the BACKLOG.md file with current task states."""
