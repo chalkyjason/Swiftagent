@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AgentUI.ViewModels"
+             x:Class="AgentUI.Views.SettingsPage"
+             Title="Settings"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+
+            <!-- Status Message -->
+            <Label Text="{Binding StatusMessage}" FontSize="14"
+                   TextColor="{StaticResource GreenAccent}"
+                   HorizontalTextAlignment="Center" />
+
+            <!-- Workspace -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="WORKSPACE" Style="{StaticResource CardTitle}" />
+                    <Label Text="{Binding WorkspaceRoot}" FontSize="14" FontFamily="Courier New"
+                           TextColor="{StaticResource SecondaryText}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Budget Configuration -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="BUDGET" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,100" RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <Label Text="Daily Budget (USD)" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Entry Grid.Column="1" Text="{Binding DailyBudget, StringFormat='{0:F2}'}"
+                               Keyboard="Numeric" HorizontalTextAlignment="End" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Logging -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="LOGGING" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Log Level" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Picker Grid.Column="1" ItemsSource="{Binding LogLevels}"
+                                SelectedItem="{Binding LogLevel}"
+                                TextColor="{StaticResource PrimaryText}"
+                                WidthRequest="120" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Safety Configuration -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="SAFETY" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
+                        <Label Text="Sandbox Mode" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding SandboxEnabled}" />
+
+                        <Label Grid.Row="1" Text="Safe Delete (move to trash)" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Switch Grid.Row="1" Grid.Column="1" IsToggled="{Binding SafeDeleteEnabled}" />
+
+                        <Label Grid.Row="2" Text="Max Files Per Session" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Entry Grid.Row="2" Grid.Column="1"
+                               Text="{Binding MaxFilesPerSession}"
+                               Keyboard="Numeric" HorizontalTextAlignment="End" WidthRequest="80" />
+
+                        <Label Grid.Row="3" Text="Max File Size" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="{Binding MaxFileSize}" FontSize="14"
+                               TextColor="{StaticResource PrimaryText}" VerticalTextAlignment="Center" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Context Configuration -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="CONTEXT MANAGEMENT" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,120">
+                        <Label Text="Max Context Tokens" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Entry Grid.Column="1"
+                               Text="{Binding MaxContextTokens}"
+                               Keyboard="Numeric" HorizontalTextAlignment="End" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Action Buttons -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Button Text="Reset" Command="{Binding ResetCommand}"
+                        Style="{StaticResource OutlineButton}" />
+                <Button Grid.Column="1" Text="Save Settings" Command="{Binding SaveCommand}"
+                        Style="{StaticResource PrimaryButton}"
+                        IsEnabled="{Binding HasUnsavedChanges}" />
+            </Grid>
+
+            <BoxView HeightRequest="20" Color="Transparent" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

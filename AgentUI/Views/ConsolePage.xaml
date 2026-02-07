@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AgentUI.ViewModels"
+             xmlns:models="clr-namespace:AgentUI.Models"
+             xmlns:conv="clr-namespace:AgentUI.Converters"
+             x:Class="AgentUI.Views.ConsolePage"
+             Title="Console"
+             x:DataType="vm:ConsoleViewModel">
+
+    <ContentPage.Resources>
+        <conv:LogLevelToColorConverter x:Key="LevelColor" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="16" RowSpacing="12">
+
+        <!-- Stats Bar -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+            <Frame Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding TotalEntries}" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource CyanAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Total" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="1" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding ErrorCount}" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource RedAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Errors" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="2" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding WarnCount}" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource OrangeAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Warnings" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+        </Grid>
+
+        <!-- Filter & Actions Bar -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="All" Command="{Binding FilterByLevelCommand}" CommandParameter="All"
+                            Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
+                    <Button Text="INFO" Command="{Binding FilterByLevelCommand}" CommandParameter="INFO"
+                            Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0"
+                            TextColor="{StaticResource CyanAccent}" BorderColor="{StaticResource CyanAccent}" />
+                    <Button Text="WARN" Command="{Binding FilterByLevelCommand}" CommandParameter="WARN"
+                            Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0"
+                            TextColor="{StaticResource OrangeAccent}" BorderColor="{StaticResource OrangeAccent}" />
+                    <Button Text="ERROR" Command="{Binding FilterByLevelCommand}" CommandParameter="ERROR"
+                            Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0"
+                            TextColor="{StaticResource RedAccent}" BorderColor="{StaticResource RedAccent}" />
+                </HorizontalStackLayout>
+            </ScrollView>
+            <Button Grid.Column="1" Text="Clear" Command="{Binding ClearLogsCommand}"
+                    Style="{StaticResource DangerButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
+        </Grid>
+
+        <!-- Log Entries -->
+        <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredLogs}"
+                         BackgroundColor="{StaticResource DarkCardAlt}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:LogEntry">
+                    <Grid Padding="12,6" ColumnDefinitions="70,50,*" ColumnSpacing="8">
+                        <!-- Timestamp -->
+                        <Label Text="{Binding Timestamp, StringFormat='{0:HH:mm:ss}'}"
+                               FontSize="11" FontFamily="Courier New"
+                               TextColor="{StaticResource MutedText}" VerticalTextAlignment="Center" />
+
+                        <!-- Level Badge -->
+                        <Label Grid.Column="1" Text="{Binding Level}"
+                               FontSize="10" FontAttributes="Bold" FontFamily="Courier New"
+                               TextColor="{Binding Level, Converter={StaticResource LevelColor}}"
+                               VerticalTextAlignment="Center" />
+
+                        <!-- Message -->
+                        <Label Grid.Column="2" Text="{Binding Message}"
+                               FontSize="12" FontFamily="Courier New"
+                               TextColor="{StaticResource PrimaryText}"
+                               LineBreakMode="TailTruncation"
+                               VerticalTextAlignment="Center" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="8" Padding="20">
+                    <Label Text="No log entries" FontSize="16"
+                           TextColor="{StaticResource MutedText}" HorizontalTextAlignment="Center" />
+                    <Label Text="Logs will appear here as the agent runs"
+                           FontSize="12" TextColor="{StaticResource MutedText}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

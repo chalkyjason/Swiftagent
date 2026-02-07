@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AgentUI.ViewModels"
+             xmlns:models="clr-namespace:AgentUI.Models"
+             xmlns:conv="clr-namespace:AgentUI.Converters"
+             x:Class="AgentUI.Views.SafetyPage"
+             Title="Safety &amp; Cost"
+             x:DataType="vm:SafetyViewModel">
+
+    <ContentPage.Resources>
+        <conv:BoolToBlockedColorConverter x:Key="BlockedColor" />
+        <conv:BoolToBlockedTextConverter x:Key="BlockedText" />
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+
+            <!-- Cost Overview -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="COST OVERVIEW" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding CostToday, StringFormat='${0:F2}'}"
+                                   FontSize="36" FontAttributes="Bold" TextColor="{StaticResource GreenAccent}" />
+                            <Label Text="spent today" Style="{StaticResource MetricLabel}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="{Binding TotalTokensUsed, StringFormat='{0:N0}'}"
+                                   FontSize="36" FontAttributes="Bold" TextColor="{StaticResource CyanAccent}" />
+                            <Label Text="tokens used" Style="{StaticResource MetricLabel}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Budget Usage" FontSize="12" TextColor="{StaticResource SecondaryText}" />
+                            <Label Grid.Column="1" Text="{Binding BudgetText}"
+                                   FontSize="12" TextColor="{StaticResource SecondaryText}" />
+                        </Grid>
+                        <ProgressBar Progress="{Binding BudgetUsagePercent}"
+                                     ProgressColor="{StaticResource OrangeAccent}" HeightRequest="6" />
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Cost History -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="COST HISTORY" Style="{StaticResource CardTitle}" />
+
+                    <CollectionView ItemsSource="{Binding CostEntries}" HeightRequest="220">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:CostEntry">
+                                <Grid Padding="0,6" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                    <VerticalStackLayout>
+                                        <Label Text="{Binding Operation}" FontSize="13"
+                                               TextColor="{StaticResource PrimaryText}" />
+                                        <Label Text="{Binding Timestamp, StringFormat='{0:HH:mm}'}"
+                                               FontSize="11" TextColor="{StaticResource MutedText}" />
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="1"
+                                           Text="{Binding TokensUsed, StringFormat='{0:N0} tok'}"
+                                           FontSize="12" TextColor="{StaticResource MutedText}"
+                                           VerticalTextAlignment="Center" />
+                                    <Label Grid.Column="2"
+                                           Text="{Binding Amount, StringFormat='${0:F2}'}"
+                                           FontSize="14" FontAttributes="Bold"
+                                           TextColor="{StaticResource GreenAccent}"
+                                           VerticalTextAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Safety Stats -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding BlockedEvents}" FontSize="32" FontAttributes="Bold"
+                               TextColor="{StaticResource RedAccent}" HorizontalTextAlignment="Center" />
+                        <Label Text="Blocked" FontSize="12" TextColor="{StaticResource MutedText}"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Frame>
+                <Frame Grid.Column="1" Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding AllowedEvents}" FontSize="32" FontAttributes="Bold"
+                               TextColor="{StaticResource GreenAccent}" HorizontalTextAlignment="Center" />
+                        <Label Text="Allowed" FontSize="12" TextColor="{StaticResource MutedText}"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Frame>
+            </Grid>
+
+            <!-- Safety Events -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="SAFETY EVENTS" Style="{StaticResource CardTitle}" />
+                        <Button Grid.Column="1" Text="Refresh" Command="{Binding RefreshCommand}"
+                                Style="{StaticResource OutlineButton}" HeightRequest="32" FontSize="11" Padding="10,0" />
+                    </Grid>
+
+                    <CollectionView ItemsSource="{Binding SafetyEvents}" HeightRequest="280">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:SafetyEvent">
+                                <Frame Style="{StaticResource CardFrameAlt}" Margin="0,0,0,6" Padding="12">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
+                                        <Label Text="{Binding EventType}" FontSize="13" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryText}" />
+                                        <Frame Grid.Column="1" Padding="6,2" CornerRadius="4" HasShadow="False"
+                                               BackgroundColor="{Binding WasBlocked, Converter={StaticResource BlockedColor}}"
+                                               BorderColor="Transparent" VerticalOptions="Center">
+                                            <Label Text="{Binding WasBlocked, Converter={StaticResource BlockedText}}"
+                                                   FontSize="9" FontAttributes="Bold"
+                                                   TextColor="{StaticResource DarkBackground}" />
+                                        </Frame>
+                                        <Label Grid.Row="1" Grid.ColumnSpan="2"
+                                               Text="{Binding Details}" FontSize="12"
+                                               TextColor="{StaticResource SecondaryText}" />
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+
+            <BoxView HeightRequest="20" Color="Transparent" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

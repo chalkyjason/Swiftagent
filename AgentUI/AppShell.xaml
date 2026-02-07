@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:views="clr-namespace:AgentUI.Views"
+       x:Class="AgentUI.AppShell"
+       Shell.FlyoutBehavior="Flyout"
+       Shell.FlyoutBackgroundColor="{StaticResource DarkSurface}"
+       Shell.FlyoutWidth="280">
+
+    <Shell.FlyoutHeader>
+        <Grid Padding="20" HeightRequest="140" BackgroundColor="{StaticResource DarkBackground}">
+            <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                <Label Text="&#x1F916;"
+                       FontSize="36"
+                       HorizontalOptions="Start" />
+                <Label Text="Swiftagent"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource CyanAccent}" />
+                <Label Text="Autonomous Agent Control Panel"
+                       FontSize="12"
+                       TextColor="{StaticResource MutedText}" />
+            </VerticalStackLayout>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <FlyoutItem Title="Dashboard" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:DashboardPage}" Route="dashboard" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Backlog" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:BacklogPage}" Route="backlog" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Console" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:ConsolePage}" Route="console" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Safety &amp; Cost" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:SafetyPage}" Route="safety" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Settings" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" Route="settings" />
+    </FlyoutItem>
+
+</Shell>
