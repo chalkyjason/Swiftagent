@@ -45,6 +45,42 @@
                 </Grid>
             </Frame>
 
+            <!-- OpenClaw Status Card -->
+            <Frame Style="{StaticResource CardFrame}" BorderColor="{Binding OpenClawConnectionColor}">
+                <VerticalStackLayout Spacing="8">
+                    <HorizontalStackLayout Spacing="10">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                 Color="{Binding OpenClawConnectionColor}" VerticalOptions="Center" />
+                        <Label Text="OpenClaw" FontSize="16" FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryText}" />
+                        <Frame Padding="6,2" CornerRadius="4" HasShadow="False"
+                               BackgroundColor="{StaticResource DarkCardAlt}" BorderColor="Transparent"
+                               VerticalOptions="Center">
+                            <Label Text="{Binding OpenClawVersion}" FontSize="9"
+                                   TextColor="{StaticResource MutedText}" />
+                        </Frame>
+                    </HorizontalStackLayout>
+
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding OpenClawModel}" FontSize="12" FontAttributes="Bold"
+                                   TextColor="{StaticResource CyanAccent}" LineBreakMode="TailTruncation" />
+                            <Label Text="model" FontSize="10" TextColor="{StaticResource MutedText}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="{Binding OpenClawSkills}" FontSize="12" FontAttributes="Bold"
+                                   TextColor="{StaticResource PurpleAccent}" />
+                            <Label Text="skills" FontSize="10" TextColor="{StaticResource MutedText}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2">
+                            <Label Text="{Binding OpenClawTokens}" FontSize="12" FontAttributes="Bold"
+                                   TextColor="{StaticResource GreenAccent}" />
+                            <Label Text="tokens" FontSize="10" TextColor="{StaticResource MutedText}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
             <!-- OODA Loop Visualization -->
             <Frame Style="{StaticResource CardFrame}">
                 <VerticalStackLayout Spacing="12">

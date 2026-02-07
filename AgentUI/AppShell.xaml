@@ -28,6 +28,14 @@
         <ShellContent ContentTemplate="{DataTemplate views:DashboardPage}" Route="dashboard" />
     </FlyoutItem>
 
+    <FlyoutItem Title="OpenClaw" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:OpenClawPage}" Route="openclaw" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Skills" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:SkillsPage}" Route="skills" />
+    </FlyoutItem>
+
     <FlyoutItem Title="Backlog" Icon="{x:Null}">
         <ShellContent ContentTemplate="{DataTemplate views:BacklogPage}" Route="backlog" />
     </FlyoutItem>

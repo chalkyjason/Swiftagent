@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AgentUI.ViewModels"
+             xmlns:models="clr-namespace:AgentUI.Models"
+             xmlns:conv="clr-namespace:AgentUI.Converters"
+             x:Class="AgentUI.Views.OpenClawPage"
+             Title="OpenClaw"
+             x:DataType="vm:OpenClawViewModel">
+
+    <ContentPage.Resources>
+        <conv:BoolToRunningColorConverter x:Key="RunningColor" />
+        <conv:BoolToConnectedTextConverter x:Key="ConnectedText" />
+        <conv:ChatRoleToColorConverter x:Key="RoleColor" />
+        <conv:ChatRoleToBgColorConverter x:Key="RoleBgColor" />
+        <conv:ChatRoleToLabelConverter x:Key="RoleLabel" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="16" RowSpacing="12">
+
+        <!-- Connection Header -->
+        <Frame Style="{StaticResource CardFrame}">
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                <HorizontalStackLayout Spacing="10">
+                    <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6"
+                             Color="{Binding ConnectionColor}" VerticalOptions="Center" />
+                    <Label Text="{Binding IsConnected, Converter={StaticResource ConnectedText}}"
+                           FontSize="18" FontAttributes="Bold"
+                           TextColor="{Binding ConnectionColor}" />
+                    <Frame Padding="6,2" CornerRadius="4" HasShadow="False"
+                           BackgroundColor="{StaticResource DarkCardAlt}" BorderColor="Transparent"
+                           VerticalOptions="Center">
+                        <Label Text="{Binding Version}" FontSize="10"
+                               TextColor="{StaticResource MutedText}" />
+                    </Frame>
+                </HorizontalStackLayout>
+
+                <Button Grid.Column="1" Command="{Binding ToggleConnectionCommand}"
+                        Style="{StaticResource PrimaryButton}" WidthRequest="120">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsConnected}" Value="True">
+                            <Setter Property="Text" Value="Disconnect" />
+                            <Setter Property="BackgroundColor" Value="{StaticResource RedAccent}" />
+                            <Setter Property="TextColor" Value="White" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsConnected}" Value="False">
+                            <Setter Property="Text" Value="Connect" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+
+                <Label Grid.Row="1" Grid.ColumnSpan="2" Margin="0,6,0,0">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="{Binding AgentName}" FontAttributes="Bold"
+                                  TextColor="{StaticResource PrimaryText}" />
+                            <Span Text="  ·  " TextColor="{StaticResource MutedText}" />
+                            <Span Text="{Binding SelectedModel}" TextColor="{StaticResource CyanAccent}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+
+                <Label Grid.Row="2" Grid.ColumnSpan="2" Margin="0,2,0,0">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="{Binding Platform}" TextColor="{StaticResource MutedText}" FontSize="12" />
+                            <Span Text="  ·  Uptime: " TextColor="{StaticResource MutedText}" FontSize="12" />
+                            <Span Text="{Binding Uptime}" TextColor="{StaticResource SecondaryText}" FontSize="12" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+            </Grid>
+        </Frame>
+
+        <!-- Quick Stats -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+            <Frame Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center" Spacing="2">
+                    <Label HorizontalTextAlignment="Center" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource CyanAccent}">
+                        <Label.Text>
+                            <MultiBinding StringFormat="{}{0}/{1}">
+                                <Binding Path="ActiveSkills" />
+                                <Binding Path="TotalSkills" />
+                            </MultiBinding>
+                        </Label.Text>
+                    </Label>
+                    <Label Text="Skills" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="1" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center" Spacing="2">
+                    <Label Text="{Binding TokensUsed}" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource GreenAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Tokens" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="2" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center" Spacing="2">
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="4">
+                        <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                                 Color="{Binding SafetyScannerEnabled, Converter={StaticResource RunningColor}}"
+                                 VerticalOptions="Center" />
+                        <Label Text="Scanner" FontSize="11" TextColor="{StaticResource MutedText}" />
+                    </HorizontalStackLayout>
+                    <Label Text="{Binding SafetyScannerEnabled, StringFormat='{0:true:ON:OFF}'}"
+                           FontSize="20" FontAttributes="Bold"
+                           TextColor="{Binding SafetyScannerEnabled, Converter={StaticResource RunningColor}}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+        </Grid>
+
+        <!-- Chat Messages -->
+        <Frame Grid.Row="2" Style="{StaticResource CardFrame}" Padding="0">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Padding="14,10" ColumnDefinitions="*,Auto" BackgroundColor="{StaticResource DarkCardAlt}">
+                    <Label Text="{Binding ActiveConversationTitle}"
+                           FontSize="13" FontAttributes="Bold" TextColor="{StaticResource CyanAccent}"
+                           VerticalTextAlignment="Center" />
+                    <Button Grid.Column="1" Text="+ New" Command="{Binding NewConversationCommand}"
+                            Style="{StaticResource OutlineButton}" HeightRequest="30"
+                            FontSize="11" Padding="10,0" />
+                </Grid>
+
+                <CollectionView Grid.Row="1" ItemsSource="{Binding Messages}" Margin="8,4,8,8">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:ChatMessage">
+                            <Frame Margin="0,4" Padding="10" CornerRadius="10" HasShadow="False"
+                                   BackgroundColor="{Binding Role, Converter={StaticResource RoleBgColor}}"
+                                   BorderColor="Transparent">
+                                <VerticalStackLayout Spacing="4">
+                                    <HorizontalStackLayout Spacing="8">
+                                        <Label Text="{Binding Role, Converter={StaticResource RoleLabel}}"
+                                               FontSize="10" FontAttributes="Bold"
+                                               TextColor="{Binding Role, Converter={StaticResource RoleColor}}" />
+                                        <Label Text="{Binding SkillName}"
+                                               FontSize="10" TextColor="{StaticResource PurpleAccent}" />
+                                        <Label Text="{Binding Timestamp, StringFormat='{0:HH:mm}'}"
+                                               FontSize="10" TextColor="{StaticResource MutedText}" />
+                                    </HorizontalStackLayout>
+                                    <Label Text="{Binding Content}" FontSize="13"
+                                           TextColor="{StaticResource PrimaryText}"
+                                           LineBreakMode="WordWrap" />
+                                </VerticalStackLayout>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="6">
+                            <Label Text="No messages yet" FontSize="14"
+                                   TextColor="{StaticResource MutedText}" HorizontalTextAlignment="Center" />
+                            <Label Text="Send a message to start a conversation"
+                                   FontSize="12" TextColor="{StaticResource MutedText}"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+                </CollectionView>
+            </Grid>
+        </Frame>
+
+        <!-- Message Input -->
+        <Frame Grid.Row="3" Style="{StaticResource CardFrame}" Padding="8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry Text="{Binding MessageText}" Placeholder="Send a task to OpenClaw..."
+                       ReturnCommand="{Binding SendMessageCommand}"
+                       FontSize="14" />
+                <Button Grid.Column="1" Text="Send" Command="{Binding SendMessageCommand}"
+                        Style="{StaticResource PrimaryButton}" Padding="16,8" />
+            </Grid>
+        </Frame>
+
+    </Grid>
+</ContentPage>

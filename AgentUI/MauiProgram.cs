@@ -23,6 +23,7 @@ public static class MauiProgram
         // Services
         builder.Services.AddSingleton<IAgentService, AgentService>();
         builder.Services.AddSingleton<IBacklogService, BacklogService>();
+        builder.Services.AddSingleton<IOpenClawService, OpenClawService>();
 
         // ViewModels
         builder.Services.AddSingleton<DashboardViewModel>();
@@ -30,6 +31,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<ConsoleViewModel>();
         builder.Services.AddSingleton<SettingsViewModel>();
         builder.Services.AddSingleton<SafetyViewModel>();
+        builder.Services.AddSingleton<OpenClawViewModel>();
+        builder.Services.AddSingleton<SkillsViewModel>();
 
         // Views
         builder.Services.AddSingleton<DashboardPage>();
@@ -37,6 +40,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<ConsolePage>();
         builder.Services.AddSingleton<SettingsPage>();
         builder.Services.AddSingleton<SafetyPage>();
+        builder.Services.AddSingleton<OpenClawPage>();
+        builder.Services.AddSingleton<SkillsPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();

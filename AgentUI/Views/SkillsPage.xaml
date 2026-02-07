@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AgentUI.ViewModels"
+             xmlns:models="clr-namespace:AgentUI.Models"
+             xmlns:conv="clr-namespace:AgentUI.Converters"
+             x:Class="AgentUI.Views.SkillsPage"
+             Title="Skills"
+             x:DataType="vm:SkillsViewModel">
+
+    <ContentPage.Resources>
+        <conv:SafetyRatingToColorConverter x:Key="SafetyColor" />
+        <conv:BoolToRunningColorConverter x:Key="EnabledColor" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="12">
+
+        <!-- Stats -->
+        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+            <Frame Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding TotalCount}" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource CyanAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Total" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="1" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding EnabledCount}" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource GreenAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Active" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="2" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding VerifiedCount}" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource GreenAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Verified" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="3" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding FlaggedCount}" FontSize="20" FontAttributes="Bold"
+                           TextColor="{StaticResource RedAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Flagged" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+        </Grid>
+
+        <!-- Whitelist Mode Banner -->
+        <Frame Grid.Row="1" Padding="12,8" CornerRadius="8" HasShadow="False"
+               BackgroundColor="{StaticResource DarkCardAlt}" BorderColor="Transparent">
+            <HorizontalStackLayout Spacing="8">
+                <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                         Color="{Binding WhitelistOnlyMode, Converter={StaticResource EnabledColor}}"
+                         VerticalOptions="Center" />
+                <Label Text="Whitelist-Only Mode" FontSize="13" FontAttributes="Bold"
+                       TextColor="{StaticResource PrimaryText}" VerticalTextAlignment="Center" />
+                <Label Text="(recommended — only whitelisted skills can be enabled)"
+                       FontSize="11" TextColor="{StaticResource MutedText}" VerticalTextAlignment="Center" />
+            </HorizontalStackLayout>
+        </Frame>
+
+        <!-- Filter Chips -->
+        <ScrollView Grid.Row="2" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="All" Command="{Binding FilterCommand}" CommandParameter="All"
+                        Style="{StaticResource OutlineButton}" HeightRequest="34" FontSize="11" Padding="10,0" />
+                <Button Text="Enabled" Command="{Binding FilterCommand}" CommandParameter="Enabled"
+                        Style="{StaticResource OutlineButton}" HeightRequest="34" FontSize="11" Padding="10,0"
+                        TextColor="{StaticResource GreenAccent}" BorderColor="{StaticResource GreenAccent}" />
+                <Button Text="Whitelisted" Command="{Binding FilterCommand}" CommandParameter="Whitelisted"
+                        Style="{StaticResource OutlineButton}" HeightRequest="34" FontSize="11" Padding="10,0" />
+                <Button Text="Verified" Command="{Binding FilterCommand}" CommandParameter="Verified"
+                        Style="{StaticResource OutlineButton}" HeightRequest="34" FontSize="11" Padding="10,0"
+                        TextColor="{StaticResource GreenAccent}" BorderColor="{StaticResource GreenAccent}" />
+                <Button Text="Community" Command="{Binding FilterCommand}" CommandParameter="Community"
+                        Style="{StaticResource OutlineButton}" HeightRequest="34" FontSize="11" Padding="10,0"
+                        TextColor="{StaticResource CyanAccent}" BorderColor="{StaticResource CyanAccent}" />
+                <Button Text="Flagged" Command="{Binding FilterCommand}" CommandParameter="Flagged"
+                        Style="{StaticResource OutlineButton}" HeightRequest="34" FontSize="11" Padding="10,0"
+                        TextColor="{StaticResource RedAccent}" BorderColor="{StaticResource RedAccent}" />
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Skills List -->
+        <CollectionView Grid.Row="3" ItemsSource="{Binding FilteredSkills}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:OpenClawSkill">
+                    <Frame Style="{StaticResource CardFrameAlt}" Margin="0,0,0,8" Padding="14">
+                        <Grid ColumnDefinitions="6,*,Auto" ColumnSpacing="12"
+                              RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+
+                            <!-- Safety Rating Bar -->
+                            <BoxView WidthRequest="4" CornerRadius="2" Grid.RowSpan="3"
+                                     Color="{Binding SafetyRating, Converter={StaticResource SafetyColor}}"
+                                     VerticalOptions="Fill" />
+
+                            <!-- Skill Name & Category -->
+                            <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                                <Label Text="{Binding Name}" FontSize="15" FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryText}" />
+                                <Frame Padding="6,2" CornerRadius="4" HasShadow="False"
+                                       BackgroundColor="{StaticResource DarkCard}" BorderColor="Transparent"
+                                       VerticalOptions="Center">
+                                    <Label Text="{Binding Version}" FontSize="9"
+                                           TextColor="{StaticResource MutedText}" />
+                                </Frame>
+                            </HorizontalStackLayout>
+
+                            <!-- Toggle Switch -->
+                            <Switch Grid.Column="2" Grid.RowSpan="2"
+                                    IsToggled="{Binding IsEnabled}"
+                                    VerticalOptions="Center" />
+
+                            <!-- Description -->
+                            <Label Grid.Row="1" Grid.Column="1"
+                                   Text="{Binding Description}" FontSize="12"
+                                   TextColor="{StaticResource SecondaryText}"
+                                   LineBreakMode="TailTruncation" />
+
+                            <!-- Meta Row -->
+                            <HorizontalStackLayout Grid.Row="2" Grid.Column="1" Spacing="12">
+                                <!-- Safety Badge -->
+                                <Frame Padding="6,2" CornerRadius="4" HasShadow="False"
+                                       BackgroundColor="{Binding SafetyRating, Converter={StaticResource SafetyColor}}"
+                                       BorderColor="Transparent">
+                                    <Label Text="{Binding SafetyRating}" FontSize="9" FontAttributes="Bold"
+                                           TextColor="{StaticResource DarkBackground}" />
+                                </Frame>
+
+                                <Label FontSize="11" TextColor="{StaticResource MutedText}"
+                                       VerticalTextAlignment="Center">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="{Binding Category}" />
+                                            <Span Text="  ·  " />
+                                            <Span Text="{Binding Author}" />
+                                            <Span Text="  ·  " />
+                                            <Span Text="{Binding UsageCount, StringFormat='{0} uses'}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+
+                                <!-- Whitelist indicator -->
+                                <Frame Padding="6,2" CornerRadius="4" HasShadow="False"
+                                       BackgroundColor="{StaticResource DarkCard}" BorderColor="Transparent"
+                                       IsVisible="{Binding IsWhitelisted}">
+                                    <Label Text="WHITELISTED" FontSize="8" FontAttributes="Bold"
+                                           TextColor="{StaticResource GreenAccent}" />
+                                </Frame>
+                            </HorizontalStackLayout>
+
+                            <!-- Permissions (below meta) -->
+
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="8">
+                    <Label Text="No skills match filter" FontSize="16"
+                           TextColor="{StaticResource MutedText}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

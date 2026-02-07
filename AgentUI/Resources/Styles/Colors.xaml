@@ -32,6 +32,15 @@
     <Color x:Key="StatusIdle">#6c757d</Color>
     <Color x:Key="StatusError">#ff1744</Color>
 
+    <!-- OpenClaw / Skill Safety Colors -->
+    <Color x:Key="SkillVerified">#00e676</Color>
+    <Color x:Key="SkillCommunity">#00d4ff</Color>
+    <Color x:Key="SkillUnreviewed">#ff9100</Color>
+    <Color x:Key="SkillFlagged">#ff1744</Color>
+    <Color x:Key="ChatUser">#0f3460</Color>
+    <Color x:Key="ChatAssistant">#1a2e1a</Color>
+    <Color x:Key="ChatSkill">#2a1a3e</Color>
+
     <!-- Phase Colors -->
     <Color x:Key="PhaseObserve">#00d4ff</Color>
     <Color x:Key="PhaseOrient">#d500f9</Color>

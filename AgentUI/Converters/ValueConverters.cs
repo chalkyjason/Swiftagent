@@ -133,3 +133,96 @@ public class DoubleToPercentConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();
 }
+
+public class SafetyRatingToColorConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not SkillSafetyRating rating) return Colors.Grey;
+        return rating switch
+        {
+            SkillSafetyRating.Verified => Color.FromArgb("#00e676"),
+            SkillSafetyRating.Community => Color.FromArgb("#00d4ff"),
+            SkillSafetyRating.Unreviewed => Color.FromArgb("#ff9100"),
+            SkillSafetyRating.Flagged => Color.FromArgb("#ff1744"),
+            _ => Colors.Grey
+        };
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class ChatRoleToColorConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not ChatRole role) return Colors.Grey;
+        return role switch
+        {
+            ChatRole.User => Color.FromArgb("#00d4ff"),
+            ChatRole.Assistant => Color.FromArgb("#00e676"),
+            ChatRole.Skill => Color.FromArgb("#d500f9"),
+            ChatRole.System => Color.FromArgb("#6c757d"),
+            _ => Colors.Grey
+        };
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class ChatRoleToAlignmentConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is ChatRole.User ? LayoutOptions.End : LayoutOptions.Start;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class ChatRoleToBgColorConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not ChatRole role) return Color.FromArgb("#1a1a3e");
+        return role switch
+        {
+            ChatRole.User => Color.FromArgb("#0f3460"),
+            ChatRole.Assistant => Color.FromArgb("#1a2e1a"),
+            ChatRole.Skill => Color.FromArgb("#2a1a3e"),
+            _ => Color.FromArgb("#1a1a3e")
+        };
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class ChatRoleToLabelConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not ChatRole role) return "?";
+        return role switch
+        {
+            ChatRole.User => "YOU",
+            ChatRole.Assistant => "OPENCLAW",
+            ChatRole.Skill => "SKILL",
+            ChatRole.System => "SYSTEM",
+            _ => "?"
+        };
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class BoolToConnectedTextConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is true ? "Connected" : "Disconnected";
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}

@@ -9,6 +9,7 @@ namespace AgentUI.ViewModels;
 public partial class DashboardViewModel : ObservableObject
 {
     private readonly IAgentService _agentService;
+    private readonly IOpenClawService _openClawService;
 
     [ObservableProperty] private bool _isRunning;
     [ObservableProperty] private string _currentPhase = "Idle";
@@ -31,23 +32,39 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private bool _isVerifyActive;
     [ObservableProperty] private bool _isCommitActive;
 
+    // OpenClaw status
+    [ObservableProperty] private bool _isOpenClawConnected;
+    [ObservableProperty] private Color _openClawConnectionColor = Colors.Grey;
+    [ObservableProperty] private string _openClawModel = "--";
+    [ObservableProperty] private string _openClawSkills = "0/0";
+    [ObservableProperty] private string _openClawTokens = "0";
+    [ObservableProperty] private string _openClawVersion = "--";
+
     public ObservableCollection<string> RecentActions { get; } = new();
 
-    public DashboardViewModel(IAgentService agentService)
+    public DashboardViewModel(IAgentService agentService, IOpenClawService openClawService)
     {
         _agentService = agentService;
+        _openClawService = openClawService;
         _agentService.StatusChanged += OnStatusChanged;
+        _openClawService.StatusChanged += OnOpenClawStatusChanged;
         _ = RefreshAsync();
     }
 
     private void OnStatusChanged(object? sender, AgentStatus status) =>
         MainThread.BeginInvokeOnMainThread(() => UpdateFromStatus(status));
 
+    private void OnOpenClawStatusChanged(object? sender, OpenClawStatus status) =>
+        MainThread.BeginInvokeOnMainThread(() => UpdateFromOpenClawStatus(status));
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
         var status = await _agentService.GetStatusAsync();
         UpdateFromStatus(status);
+
+        var clawStatus = await _openClawService.GetStatusAsync();
+        UpdateFromOpenClawStatus(clawStatus);
     }
 
     [RelayCommand]
@@ -97,5 +114,21 @@ public partial class DashboardViewModel : ObservableObject
         RecentActions.Clear();
         foreach (var action in status.RecentActions)
             RecentActions.Add(action);
+    }
+
+    private void UpdateFromOpenClawStatus(OpenClawStatus status)
+    {
+        IsOpenClawConnected = status.ConnectionState == OpenClawConnectionState.Connected;
+        OpenClawConnectionColor = status.ConnectionState switch
+        {
+            OpenClawConnectionState.Connected => Color.FromArgb("#00e676"),
+            OpenClawConnectionState.Connecting => Color.FromArgb("#ffea00"),
+            OpenClawConnectionState.Error => Color.FromArgb("#ff1744"),
+            _ => Color.FromArgb("#6c757d")
+        };
+        OpenClawModel = status.SelectedModel;
+        OpenClawSkills = $"{status.ActiveSkillsCount}/{status.TotalSkillsCount}";
+        OpenClawTokens = $"{status.TokensUsedToday:N0}";
+        OpenClawVersion = status.Version;
     }
 }
