@@ -4,11 +4,16 @@ namespace AgentUI.Services;
 
 /// <summary>
 /// Service that connects to and manages the local OpenClaw agent instance.
-/// Communicates via the OpenClaw local API (default port 3142).
+/// Monitors openclaw.log for real-time status and feeds logs into the UI.
+/// Launch the agent via: python -m OpenClaw [--dry-run] [--scan-only] [--task "..."]
 /// </summary>
 public class OpenClawService : IOpenClawService
 {
     private readonly Timer _pollTimer;
+    private readonly string _workspaceRoot;
+    private readonly string _logPath;
+    private long _lastLogPosition;
+    private System.Diagnostics.Process? _agentProcess;
 
     public OpenClawStatus Status { get; private set; } = new();
     public OpenClawConfig Config { get; private set; } = new();
@@ -21,6 +26,9 @@ public class OpenClawService : IOpenClawService
 
     public OpenClawService()
     {
+        _workspaceRoot = Environment.GetEnvironmentVariable("AGENT_WORKSPACE_ROOT")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Swiftagent");
+        _logPath = Path.Combine(_workspaceRoot, "openclaw.log");
         SeedDemoData();
         _pollTimer = new Timer(PollStatus, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(3));
     }
@@ -96,20 +104,108 @@ public class OpenClawService : IOpenClawService
 
     private void PollStatus(object? state)
     {
-        // Future: poll OpenClaw local API at http://{host}:{port}/api/status
-        StatusChanged?.Invoke(this, Status);
+        try
+        {
+            ReadOpenClawLog();
+
+            // Check if the agent process is running
+            if (_agentProcess is { HasExited: false })
+            {
+                Status.ConnectionState = OpenClawConnectionState.Connected;
+            }
+            else if (_agentProcess is { HasExited: true })
+            {
+                Status.ConnectionState = OpenClawConnectionState.Disconnected;
+                _agentProcess = null;
+            }
+
+            StatusChanged?.Invoke(this, Status);
+        }
+        catch
+        {
+            // Continue polling
+        }
+    }
+
+    private void ReadOpenClawLog()
+    {
+        if (!File.Exists(_logPath)) return;
+
+        using var fs = new FileStream(_logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        if (fs.Length <= _lastLogPosition) return;
+
+        fs.Seek(_lastLogPosition, SeekOrigin.Begin);
+        using var reader = new StreamReader(fs);
+
+        while (reader.ReadLine() is { } line)
+        {
+            // Parse log lines and update token counts / status
+            if (line.Contains("tokens)", StringComparison.OrdinalIgnoreCase))
+            {
+                // Extract token usage from cost log lines
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    line, @"(\d[\d,]+)\s+tokens");
+                if (match.Success && int.TryParse(
+                    match.Groups[1].Value.Replace(",", ""), out var tokens))
+                {
+                    Status.TokensUsedToday = tokens;
+                }
+            }
+
+            if (line.Contains("Calling skill:", StringComparison.OrdinalIgnoreCase))
+            {
+                // Feed skill calls into the active conversation
+                var msg = new ChatMessage
+                {
+                    Role = ChatRole.Skill,
+                    Content = line,
+                    Timestamp = DateTime.Now
+                };
+                ActiveConversation?.Messages.Add(msg);
+                MessageReceived?.Invoke(this, msg);
+            }
+        }
+
+        _lastLogPosition = fs.Position;
     }
 
     public Task ConnectAsync()
     {
-        Status.ConnectionState = OpenClawConnectionState.Connected;
-        Status.ConnectedSince = DateTime.Now;
+        // Launch the OpenClaw agent process
+        var startInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "python",
+            Arguments = "-m OpenClaw",
+            WorkingDirectory = _workspaceRoot,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+
+        try
+        {
+            _agentProcess = System.Diagnostics.Process.Start(startInfo);
+            Status.ConnectionState = OpenClawConnectionState.Connected;
+            Status.ConnectedSince = DateTime.Now;
+        }
+        catch
+        {
+            Status.ConnectionState = OpenClawConnectionState.Error;
+        }
+
         StatusChanged?.Invoke(this, Status);
         return Task.CompletedTask;
     }
 
     public Task DisconnectAsync()
     {
+        if (_agentProcess is { HasExited: false })
+        {
+            _agentProcess.Kill(entireProcessTree: true);
+            _agentProcess = null;
+        }
+
         Status.ConnectionState = OpenClawConnectionState.Disconnected;
         Status.ConnectedSince = null;
         StatusChanged?.Invoke(this, Status);
