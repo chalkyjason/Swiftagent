@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AgentUI.ViewModels"
+             xmlns:models="clr-namespace:AgentUI.Models"
+             xmlns:conv="clr-namespace:AgentUI.Converters"
+             x:Class="AgentUI.Views.BacklogPage"
+             Title="Backlog"
+             x:DataType="vm:BacklogViewModel">
+
+    <ContentPage.Resources>
+        <conv:PriorityToColorConverter x:Key="PriorityColor" />
+        <conv:StatusToColorConverter x:Key="StatusColor" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="16" RowSpacing="12">
+
+        <!-- Stats Row -->
+        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+            <Frame Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding TotalCount}" FontSize="22" FontAttributes="Bold"
+                           TextColor="{StaticResource CyanAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Total" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="1" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding InProgressCount}" FontSize="22" FontAttributes="Bold"
+                           TextColor="{StaticResource OrangeAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Active" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="2" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding PendingCount}" FontSize="22" FontAttributes="Bold"
+                           TextColor="{StaticResource YellowAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Pending" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <Frame Grid.Column="3" Style="{StaticResource CardFrame}" Padding="10">
+                <VerticalStackLayout HorizontalOptions="Center">
+                    <Label Text="{Binding CompletedCount}" FontSize="22" FontAttributes="Bold"
+                           TextColor="{StaticResource GreenAccent}" HorizontalTextAlignment="Center" />
+                    <Label Text="Done" FontSize="11" TextColor="{StaticResource MutedText}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+        </Grid>
+
+        <!-- Filter Chips -->
+        <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="All" Command="{Binding FilterCommand}" CommandParameter="All"
+                        Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
+                <Button Text="In Progress" Command="{Binding FilterCommand}" CommandParameter="In Progress"
+                        Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
+                <Button Text="Pending" Command="{Binding FilterCommand}" CommandParameter="Pending"
+                        Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
+                <Button Text="Completed" Command="{Binding FilterCommand}" CommandParameter="Completed"
+                        Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
+                <Button Text="P1" Command="{Binding FilterCommand}" CommandParameter="P1"
+                        Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0"
+                        TextColor="{StaticResource P1Color}" BorderColor="{StaticResource P1Color}" />
+                <Button Text="P2" Command="{Binding FilterCommand}" CommandParameter="P2"
+                        Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0"
+                        TextColor="{StaticResource P2Color}" BorderColor="{StaticResource P2Color}" />
+                <Button Text="P3" Command="{Binding FilterCommand}" CommandParameter="P3"
+                        Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0"
+                        TextColor="{StaticResource P3Color}" BorderColor="{StaticResource P3Color}" />
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Task List -->
+        <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredTasks}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:BacklogTask">
+                    <Frame Style="{StaticResource CardFrameAlt}" Margin="0,0,0,8" Padding="14">
+                        <Grid ColumnDefinitions="6,*,Auto" ColumnSpacing="12">
+                            <!-- Priority Bar -->
+                            <BoxView WidthRequest="4" CornerRadius="2"
+                                     Color="{Binding Priority, Converter={StaticResource PriorityColor}}"
+                                     VerticalOptions="Fill" />
+
+                            <!-- Task Info -->
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryText}" />
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="{Binding Priority}" FontSize="11" FontAttributes="Bold"
+                                           TextColor="{Binding Priority, Converter={StaticResource PriorityColor}}" />
+                                    <Label Text="{Binding Category}" FontSize="11"
+                                           TextColor="{StaticResource MutedText}" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+
+                            <!-- Status Badge -->
+                            <Frame Grid.Column="2" Padding="8,4" CornerRadius="4" HasShadow="False"
+                                   BackgroundColor="{Binding Status, Converter={StaticResource StatusColor}}"
+                                   BorderColor="Transparent" VerticalOptions="Center">
+                                <Label Text="{Binding Status}" FontSize="10" FontAttributes="Bold"
+                                       TextColor="{StaticResource DarkBackground}" />
+                            </Frame>
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="8">
+                    <Label Text="No tasks match filter" FontSize="16"
+                           TextColor="{StaticResource MutedText}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

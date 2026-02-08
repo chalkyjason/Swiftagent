@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <circle cx="64" cy="48" r="32" fill="none" stroke="#00d4ff" stroke-width="3"/>
+  <circle cx="50" cy="42" r="6" fill="#00d4ff"/>
+  <circle cx="78" cy="42" r="6" fill="#00d4ff"/>
+  <path d="M48 58 Q64 72 80 58" fill="none" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+  <line x1="42" y1="22" x2="32" y2="10" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+  <line x1="86" y1="22" x2="96" y2="10" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="8" r="5" fill="#00d4ff"/>
+  <circle cx="96" cy="8" r="5" fill="#00d4ff"/>
+  <text x="64" y="110" font-family="monospace" font-size="16" font-weight="bold" fill="#00d4ff" text-anchor="middle">Swiftagent</text>
+</svg>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- Dark Theme Core -->
+    <Color x:Key="DarkBackground">#1a1a2e</Color>
+    <Color x:Key="DarkSurface">#16213e</Color>
+    <Color x:Key="DarkCard">#0f3460</Color>
+    <Color x:Key="DarkCardAlt">#1a1a3e</Color>
+
+    <!-- Accent Colors -->
+    <Color x:Key="CyanAccent">#00d4ff</Color>
+    <Color x:Key="GreenAccent">#00e676</Color>
+    <Color x:Key="OrangeAccent">#ff9100</Color>
+    <Color x:Key="RedAccent">#ff1744</Color>
+    <Color x:Key="PurpleAccent">#d500f9</Color>
+    <Color x:Key="YellowAccent">#ffea00</Color>
+
+    <!-- Text Colors -->
+    <Color x:Key="PrimaryText">#e8e8e8</Color>
+    <Color x:Key="SecondaryText">#b0b0b0</Color>
+    <Color x:Key="MutedText">#6c757d</Color>
+
+    <!-- Priority Colors -->
+    <Color x:Key="P1Color">#ff1744</Color>
+    <Color x:Key="P2Color">#ff9100</Color>
+    <Color x:Key="P3Color">#00d4ff</Color>
+
+    <!-- Status Colors -->
+    <Color x:Key="StatusRunning">#00e676</Color>
+    <Color x:Key="StatusIdle">#6c757d</Color>
+    <Color x:Key="StatusError">#ff1744</Color>
+
+    <!-- OpenClaw / Skill Safety Colors -->
+    <Color x:Key="SkillVerified">#00e676</Color>
+    <Color x:Key="SkillCommunity">#00d4ff</Color>
+    <Color x:Key="SkillUnreviewed">#ff9100</Color>
+    <Color x:Key="SkillFlagged">#ff1744</Color>
+    <Color x:Key="ChatUser">#0f3460</Color>
+    <Color x:Key="ChatAssistant">#1a2e1a</Color>
+    <Color x:Key="ChatSkill">#2a1a3e</Color>
+
+    <!-- Phase Colors -->
+    <Color x:Key="PhaseObserve">#00d4ff</Color>
+    <Color x:Key="PhaseOrient">#d500f9</Color>
+    <Color x:Key="PhaseDecide">#ffea00</Color>
+    <Color x:Key="PhaseAct">#00e676</Color>
+    <Color x:Key="PhaseVerify">#ff9100</Color>
+    <Color x:Key="PhaseCommit">#00e676</Color>
+
+</ResourceDictionary>

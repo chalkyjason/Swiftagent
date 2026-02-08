@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AgentUI.ViewModels"
+             xmlns:conv="clr-namespace:AgentUI.Converters"
+             x:Class="AgentUI.Views.DashboardPage"
+             Title="Dashboard"
+             x:DataType="vm:DashboardViewModel">
+
+    <ContentPage.Resources>
+        <conv:BoolToRunningColorConverter x:Key="RunningColor" />
+        <conv:BoolToRunningTextConverter x:Key="RunningText" />
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+
+            <!-- Agent Status Header -->
+            <Frame Style="{StaticResource CardFrame}">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                    <HorizontalStackLayout Spacing="12">
+                        <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6"
+                                 Color="{Binding IsRunning, Converter={StaticResource RunningColor}}"
+                                 VerticalOptions="Center" />
+                        <Label Text="{Binding IsRunning, Converter={StaticResource RunningText}}"
+                               FontSize="20" FontAttributes="Bold"
+                               TextColor="{Binding IsRunning, Converter={StaticResource RunningColor}}" />
+                    </HorizontalStackLayout>
+
+                    <Button Grid.Column="1"
+                            Text="{Binding IsRunning, StringFormat='{0:true:Stop Agent:Start Agent}'}"
+                            Command="{Binding ToggleAgentCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            WidthRequest="130" />
+
+                    <Label Grid.Row="1" Grid.ColumnSpan="2"
+                           Text="{Binding CurrentTask}"
+                           FontSize="14" TextColor="{StaticResource SecondaryText}"
+                           Margin="0,4,0,0" />
+
+                    <Label Grid.Row="2" Grid.ColumnSpan="2"
+                           Text="{Binding Uptime, StringFormat='Uptime: {0}'}"
+                           FontSize="12" TextColor="{StaticResource MutedText}"
+                           Margin="0,4,0,0" />
+                </Grid>
+            </Frame>
+
+            <!-- OpenClaw Status Card -->
+            <Frame Style="{StaticResource CardFrame}" BorderColor="{Binding OpenClawConnectionColor}">
+                <VerticalStackLayout Spacing="8">
+                    <HorizontalStackLayout Spacing="10">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                 Color="{Binding OpenClawConnectionColor}" VerticalOptions="Center" />
+                        <Label Text="OpenClaw" FontSize="16" FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryText}" />
+                        <Frame Padding="6,2" CornerRadius="4" HasShadow="False"
+                               BackgroundColor="{StaticResource DarkCardAlt}" BorderColor="Transparent"
+                               VerticalOptions="Center">
+                            <Label Text="{Binding OpenClawVersion}" FontSize="9"
+                                   TextColor="{StaticResource MutedText}" />
+                        </Frame>
+                    </HorizontalStackLayout>
+
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding OpenClawModel}" FontSize="12" FontAttributes="Bold"
+                                   TextColor="{StaticResource CyanAccent}" LineBreakMode="TailTruncation" />
+                            <Label Text="model" FontSize="10" TextColor="{StaticResource MutedText}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="{Binding OpenClawSkills}" FontSize="12" FontAttributes="Bold"
+                                   TextColor="{StaticResource PurpleAccent}" />
+                            <Label Text="skills" FontSize="10" TextColor="{StaticResource MutedText}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2">
+                            <Label Text="{Binding OpenClawTokens}" FontSize="12" FontAttributes="Bold"
+                                   TextColor="{StaticResource GreenAccent}" />
+                            <Label Text="tokens" FontSize="10" TextColor="{StaticResource MutedText}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- OODA Loop Visualization -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="OODA LOOP" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,*,*,*,*,*" ColumnSpacing="6">
+                        <!-- Observe -->
+                        <Frame Grid.Column="0" Padding="8" CornerRadius="8" HasShadow="False"
+                               BackgroundColor="{Binding IsObserveActive, Converter={StaticResource RunningColor}}"
+                               BorderColor="Transparent">
+                            <VerticalStackLayout HorizontalOptions="Center" Spacing="2">
+                                <Label Text="OBS" FontSize="10" FontAttributes="Bold"
+                                       HorizontalTextAlignment="Center"
+                                       TextColor="{StaticResource DarkBackground}" />
+                            </VerticalStackLayout>
+                        </Frame>
+
+                        <!-- Orient -->
+                        <Frame Grid.Column="1" Padding="8" CornerRadius="8" HasShadow="False"
+                               BackgroundColor="{Binding IsOrientActive, Converter={StaticResource RunningColor}}"
+                               BorderColor="Transparent">
+                            <Label Text="ORI" FontSize="10" FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center"
+                                   TextColor="{StaticResource DarkBackground}" />
+                        </Frame>
+
+                        <!-- Decide -->
+                        <Frame Grid.Column="2" Padding="8" CornerRadius="8" HasShadow="False"
+                               BackgroundColor="{Binding IsDecideActive, Converter={StaticResource RunningColor}}"
+                               BorderColor="Transparent">
+                            <Label Text="DEC" FontSize="10" FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center"
+                                   TextColor="{StaticResource DarkBackground}" />
+                        </Frame>
+
+                        <!-- Act -->
+                        <Frame Grid.Column="3" Padding="8" CornerRadius="8" HasShadow="False"
+                               BackgroundColor="{Binding IsActActive, Converter={StaticResource RunningColor}}"
+                               BorderColor="Transparent">
+                            <Label Text="ACT" FontSize="10" FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center"
+                                   TextColor="{StaticResource DarkBackground}" />
+                        </Frame>
+
+                        <!-- Verify -->
+                        <Frame Grid.Column="4" Padding="8" CornerRadius="8" HasShadow="False"
+                               BackgroundColor="{Binding IsVerifyActive, Converter={StaticResource RunningColor}}"
+                               BorderColor="Transparent">
+                            <Label Text="VER" FontSize="10" FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center"
+                                   TextColor="{StaticResource DarkBackground}" />
+                        </Frame>
+
+                        <!-- Commit -->
+                        <Frame Grid.Column="5" Padding="8" CornerRadius="8" HasShadow="False"
+                               BackgroundColor="{Binding IsCommitActive, Converter={StaticResource RunningColor}}"
+                               BorderColor="Transparent">
+                            <Label Text="COM" FontSize="10" FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center"
+                                   TextColor="{StaticResource DarkBackground}" />
+                        </Frame>
+                    </Grid>
+
+                    <Label Text="{Binding CurrentPhase, StringFormat='Current Phase: {0}'}"
+                           FontSize="16" FontAttributes="Bold"
+                           TextColor="{Binding PhaseColor}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Metrics Grid -->
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+
+                <!-- Tasks Progress -->
+                <Frame Grid.Row="0" Grid.Column="0" Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="TASKS" Style="{StaticResource CardTitle}" />
+                        <Label FontSize="28" FontAttributes="Bold" TextColor="{StaticResource CyanAccent}">
+                            <Label.Text>
+                                <MultiBinding StringFormat="{}{0} / {1}">
+                                    <Binding Path="CompletedTasks" />
+                                    <Binding Path="TotalTasks" />
+                                </MultiBinding>
+                            </Label.Text>
+                        </Label>
+                        <ProgressBar Progress="{Binding TaskProgress}" ProgressColor="{StaticResource CyanAccent}"
+                                     HeightRequest="4" />
+                        <Label Text="completed" Style="{StaticResource MetricLabel}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Cost Today -->
+                <Frame Grid.Row="0" Grid.Column="1" Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="COST TODAY" Style="{StaticResource CardTitle}" />
+                        <Label Text="{Binding CostToday}" FontSize="28" FontAttributes="Bold"
+                               TextColor="{StaticResource GreenAccent}" />
+                        <ProgressBar Progress="{Binding BudgetUsage}" ProgressColor="{StaticResource OrangeAccent}"
+                                     HeightRequest="4" />
+                        <Label Text="{Binding BudgetText}" Style="{StaticResource MetricLabel}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Uptime -->
+                <Frame Grid.Row="1" Grid.Column="0" Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="UPTIME" Style="{StaticResource CardTitle}" />
+                        <Label Text="{Binding Uptime}" FontSize="28" FontAttributes="Bold"
+                               TextColor="{StaticResource PurpleAccent}" />
+                        <Label Text="session duration" Style="{StaticResource MetricLabel}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Files Created -->
+                <Frame Grid.Row="1" Grid.Column="1" Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="FILES" Style="{StaticResource CardTitle}" />
+                        <Label Text="{Binding FilesText}" FontSize="28" FontAttributes="Bold"
+                               TextColor="{StaticResource YellowAccent}" />
+                        <Label Text="created this session" Style="{StaticResource MetricLabel}" />
+                    </VerticalStackLayout>
+                </Frame>
+            </Grid>
+
+            <!-- Recent Actions -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="RECENT ACTIONS" Style="{StaticResource CardTitle}" />
+                    <CollectionView ItemsSource="{Binding RecentActions}" HeightRequest="160">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Grid Padding="0,4" ColumnDefinitions="8,*">
+                                    <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2"
+                                             Color="{StaticResource CyanAccent}"
+                                             VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="{Binding .}"
+                                           FontSize="13" TextColor="{StaticResource SecondaryText}"
+                                           Margin="8,0,0,0" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
