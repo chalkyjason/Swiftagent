@@ -64,13 +64,13 @@ public class StatusToColorConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is not TaskStatus status) return Colors.Grey;
+        if (value is not BacklogTaskStatus status) return Colors.Grey;
         return status switch
         {
-            TaskStatus.Completed => Color.FromArgb("#00e676"),
-            TaskStatus.InProgress => Color.FromArgb("#00d4ff"),
-            TaskStatus.Pending => Color.FromArgb("#6c757d"),
-            TaskStatus.Blocked => Color.FromArgb("#ff1744"),
+            BacklogTaskStatus.Completed => Color.FromArgb("#00e676"),
+            BacklogTaskStatus.InProgress => Color.FromArgb("#00d4ff"),
+            BacklogTaskStatus.Pending => Color.FromArgb("#6c757d"),
+            BacklogTaskStatus.Blocked => Color.FromArgb("#ff1744"),
             _ => Colors.Grey
         };
     }

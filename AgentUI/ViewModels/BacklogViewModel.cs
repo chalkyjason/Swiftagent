@@ -34,9 +34,9 @@ public partial class BacklogViewModel : ObservableObject
             Tasks.Add(task);
 
         TotalCount = tasks.Count;
-        CompletedCount = tasks.Count(t => t.Status == TaskStatus.Completed);
-        InProgressCount = tasks.Count(t => t.Status == TaskStatus.InProgress);
-        PendingCount = tasks.Count(t => t.Status == TaskStatus.Pending);
+        CompletedCount = tasks.Count(t => t.Status == BacklogTaskStatus.Completed);
+        InProgressCount = tasks.Count(t => t.Status == BacklogTaskStatus.InProgress);
+        PendingCount = tasks.Count(t => t.Status == BacklogTaskStatus.Pending);
 
         ApplyFilter();
     }
@@ -53,9 +53,9 @@ public partial class BacklogViewModel : ObservableObject
         FilteredTasks.Clear();
         var filtered = SelectedFilter switch
         {
-            "In Progress" => Tasks.Where(t => t.Status == TaskStatus.InProgress),
-            "Pending" => Tasks.Where(t => t.Status == TaskStatus.Pending),
-            "Completed" => Tasks.Where(t => t.Status == TaskStatus.Completed),
+            "In Progress" => Tasks.Where(t => t.Status == BacklogTaskStatus.InProgress),
+            "Pending" => Tasks.Where(t => t.Status == BacklogTaskStatus.Pending),
+            "Completed" => Tasks.Where(t => t.Status == BacklogTaskStatus.Completed),
             "P1" => Tasks.Where(t => t.Priority == TaskPriority.P1),
             "P2" => Tasks.Where(t => t.Priority == TaskPriority.P2),
             "P3" => Tasks.Where(t => t.Priority == TaskPriority.P3),
