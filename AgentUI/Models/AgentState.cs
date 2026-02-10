@@ -18,7 +18,7 @@ public enum TaskPriority
     P3
 }
 
-public enum TaskStatus
+public enum BacklogTaskStatus
 {
     Pending,
     InProgress,
@@ -48,7 +48,7 @@ public class BacklogTask
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public TaskPriority Priority { get; set; } = TaskPriority.P2;
-    public TaskStatus Status { get; set; } = TaskStatus.Pending;
+    public BacklogTaskStatus Status { get; set; } = BacklogTaskStatus.Pending;
     public string Category { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? CompletedAt { get; set; }
