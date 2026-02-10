@@ -38,15 +38,10 @@ public class OpenClawService : IOpenClawService
         _statusPath = Path.Combine(_workspaceRoot, "openclaw_status.json");
         _skillsPath = Path.Combine(_workspaceRoot, "openclaw_skills.json");
 
-        // Start with real defaults — no fake data
+        // Empty state — all real values come from openclaw_status.json
         Status = new OpenClawStatus
         {
             ConnectionState = OpenClawConnectionState.Disconnected,
-            AgentName = "Swiftagent-Claw",
-            SelectedModel = "claude-sonnet-4-5-20250929",
-            Version = "1.0.0",
-            Platform = "Local",
-            SafetyScannerEnabled = true,
         };
 
         // Try to load real state from disk immediately
