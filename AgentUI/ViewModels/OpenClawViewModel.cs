@@ -134,13 +134,13 @@ public partial class OpenClawViewModel : ObservableObject
             OpenClawConnectionState.Error => Color.FromArgb("#ff1744"),
             _ => Color.FromArgb("#6c757d")
         };
-        AgentName = status.AgentName;
-        SelectedModel = status.SelectedModel;
-        Version = status.Version;
-        Platform = status.Platform;
+        AgentName = !string.IsNullOrEmpty(status.AgentName) ? status.AgentName : "OpenClaw";
+        SelectedModel = !string.IsNullOrEmpty(status.SelectedModel) ? status.SelectedModel : (IsConnected ? "--" : "");
+        Version = !string.IsNullOrEmpty(status.Version) ? status.Version : "";
+        Platform = !string.IsNullOrEmpty(status.Platform) ? status.Platform : "";
         ActiveSkills = status.ActiveSkillsCount;
         TotalSkills = status.TotalSkillsCount;
-        TokensUsed = $"{status.TokensUsedToday:N0}";
+        TokensUsed = IsConnected ? $"{status.TokensUsedToday:N0}" : "0";
         SafetyScannerEnabled = status.SafetyScannerEnabled;
         Uptime = status.Uptime.HasValue
             ? $"{status.Uptime.Value.Hours}h {status.Uptime.Value.Minutes}m"

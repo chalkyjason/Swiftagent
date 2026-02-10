@@ -27,18 +27,18 @@ public enum ChatRole
 public class OpenClawStatus
 {
     public OpenClawConnectionState ConnectionState { get; set; } = OpenClawConnectionState.Disconnected;
-    public string AgentName { get; set; } = "Swiftagent-Claw";
-    public string SelectedModel { get; set; } = "claude-opus-4-6";
-    public string Version { get; set; } = "v2026.2.6";
+    public string AgentName { get; set; } = string.Empty;
+    public string SelectedModel { get; set; } = string.Empty;
+    public string Version { get; set; } = string.Empty;
     public int ActiveSkillsCount { get; set; }
     public int TotalSkillsCount { get; set; }
     public int ConversationCount { get; set; }
     public int PendingTasks { get; set; }
     public DateTime? ConnectedSince { get; set; }
     public TimeSpan? Uptime => ConnectedSince.HasValue ? DateTime.Now - ConnectedSince.Value : null;
-    public string Platform { get; set; } = "Local";
+    public string Platform { get; set; } = string.Empty;
     public int TokensUsedToday { get; set; }
-    public bool SafetyScannerEnabled { get; set; } = true;
+    public bool SafetyScannerEnabled { get; set; }
 }
 
 public class OpenClawSkill
@@ -82,19 +82,10 @@ public class OpenClawConfig
 {
     public string Host { get; set; } = "localhost";
     public int Port { get; set; } = 3142;
-    public string SelectedModel { get; set; } = "claude-opus-4-6";
-    public List<string> AvailableModels { get; set; } = new()
-    {
-        "claude-opus-4-6",
-        "claude-sonnet-4-5-20250929",
-        "gpt-5.3-codex",
-        "deepseek-r2"
-    };
-    public bool SafetyScannerEnabled { get; set; } = true;
-    public bool WhitelistOnlyMode { get; set; } = true;
-    public string MessagingPlatform { get; set; } = "Local";
-    public List<string> AvailablePlatforms { get; set; } = new()
-    {
-        "Local", "Signal", "Telegram", "Discord"
-    };
+    public string SelectedModel { get; set; } = string.Empty;
+    public List<string> AvailableModels { get; set; } = new();
+    public bool SafetyScannerEnabled { get; set; }
+    public bool WhitelistOnlyMode { get; set; }
+    public string MessagingPlatform { get; set; } = string.Empty;
+    public List<string> AvailablePlatforms { get; set; } = new();
 }

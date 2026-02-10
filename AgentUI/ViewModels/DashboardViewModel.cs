@@ -35,10 +35,10 @@ public partial class DashboardViewModel : ObservableObject
     // OpenClaw status
     [ObservableProperty] private bool _isOpenClawConnected;
     [ObservableProperty] private Color _openClawConnectionColor = Colors.Grey;
-    [ObservableProperty] private string _openClawModel = "--";
-    [ObservableProperty] private string _openClawSkills = "0/0";
-    [ObservableProperty] private string _openClawTokens = "0";
-    [ObservableProperty] private string _openClawVersion = "--";
+    [ObservableProperty] private string _openClawModel = string.Empty;
+    [ObservableProperty] private string _openClawSkills = string.Empty;
+    [ObservableProperty] private string _openClawTokens = string.Empty;
+    [ObservableProperty] private string _openClawVersion = string.Empty;
 
     public ObservableCollection<string> RecentActions { get; } = new();
 
@@ -126,9 +126,11 @@ public partial class DashboardViewModel : ObservableObject
             OpenClawConnectionState.Error => Color.FromArgb("#ff1744"),
             _ => Color.FromArgb("#6c757d")
         };
-        OpenClawModel = status.SelectedModel;
-        OpenClawSkills = $"{status.ActiveSkillsCount}/{status.TotalSkillsCount}";
-        OpenClawTokens = $"{status.TokensUsedToday:N0}";
-        OpenClawVersion = status.Version;
+
+        var connected = status.ConnectionState == OpenClawConnectionState.Connected;
+        OpenClawModel = !string.IsNullOrEmpty(status.SelectedModel) ? status.SelectedModel : (connected ? "--" : "Not connected");
+        OpenClawSkills = status.TotalSkillsCount > 0 ? $"{status.ActiveSkillsCount}/{status.TotalSkillsCount}" : (connected ? "0" : "--");
+        OpenClawTokens = connected ? $"{status.TokensUsedToday:N0}" : "--";
+        OpenClawVersion = !string.IsNullOrEmpty(status.Version) ? status.Version : "--";
     }
 }
