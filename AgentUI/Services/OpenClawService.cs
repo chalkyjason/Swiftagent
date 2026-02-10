@@ -1,17 +1,23 @@
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using AgentUI.Models;
 
 namespace AgentUI.Services;
 
 /// <summary>
 /// Service that connects to and manages the local OpenClaw agent instance.
-/// Monitors openclaw.log for real-time status and feeds logs into the UI.
-/// Launch the agent via: python -m OpenClaw [--dry-run] [--scan-only] [--task "..."]
+/// Reads openclaw_status.json, openclaw_skills.json, and openclaw.log from
+/// the workspace — all written by the real Python agent.
+///
+/// Launch the agent: python -m OpenClaw [--dry-run] [--scan-only] [--task "..."]
 /// </summary>
 public class OpenClawService : IOpenClawService
 {
     private readonly Timer _pollTimer;
     private readonly string _workspaceRoot;
     private readonly string _logPath;
+    private readonly string _statusPath;
+    private readonly string _skillsPath;
     private long _lastLogPosition;
     private System.Diagnostics.Process? _agentProcess;
 
@@ -29,86 +35,37 @@ public class OpenClawService : IOpenClawService
         _workspaceRoot = Environment.GetEnvironmentVariable("AGENT_WORKSPACE_ROOT")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Swiftagent");
         _logPath = Path.Combine(_workspaceRoot, "openclaw.log");
-        SeedDemoData();
-        _pollTimer = new Timer(PollStatus, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(3));
-    }
+        _statusPath = Path.Combine(_workspaceRoot, "openclaw_status.json");
+        _skillsPath = Path.Combine(_workspaceRoot, "openclaw_skills.json");
 
-    private void SeedDemoData()
-    {
+        // Start with real defaults — no fake data
         Status = new OpenClawStatus
         {
-            ConnectionState = OpenClawConnectionState.Connected,
+            ConnectionState = OpenClawConnectionState.Disconnected,
             AgentName = "Swiftagent-Claw",
-            SelectedModel = "claude-opus-4-6",
-            Version = "v2026.2.6",
-            ActiveSkillsCount = 8,
-            TotalSkillsCount = 14,
-            ConversationCount = 3,
-            PendingTasks = 2,
-            ConnectedSince = DateTime.Now.AddHours(-1.5),
+            SelectedModel = "claude-sonnet-4-5-20250929",
+            Version = "1.0.0",
             Platform = "Local",
-            TokensUsedToday = 48_200,
-            SafetyScannerEnabled = true
+            SafetyScannerEnabled = true,
         };
 
-        Skills = new List<OpenClawSkill>
-        {
-            // Shell & File Skills
-            new() { Name = "shell_exec", Description = "Execute shell commands in a sandboxed environment", Category = "System", Author = "openclaw-core", Version = "2.1.0", SafetyRating = SkillSafetyRating.Verified, IsEnabled = true, IsWhitelisted = true, UsageCount = 47, RequiredPermissions = new() { "shell.execute", "process.spawn" } },
-            new() { Name = "file_manager", Description = "Read, write, and manage files within the workspace", Category = "System", Author = "openclaw-core", Version = "2.0.3", SafetyRating = SkillSafetyRating.Verified, IsEnabled = true, IsWhitelisted = true, UsageCount = 83, RequiredPermissions = new() { "fs.read", "fs.write" } },
-            new() { Name = "git_ops", Description = "Git operations: commit, branch, diff, log", Category = "Development", Author = "openclaw-core", Version = "1.4.0", SafetyRating = SkillSafetyRating.Verified, IsEnabled = true, IsWhitelisted = true, UsageCount = 29, RequiredPermissions = new() { "shell.execute", "fs.read" } },
-            new() { Name = "swift_build", Description = "Build and test Swift packages via swift CLI", Category = "Development", Author = "swiftagent", Version = "1.0.0", SafetyRating = SkillSafetyRating.Community, IsEnabled = true, IsWhitelisted = true, UsageCount = 34, RequiredPermissions = new() { "shell.execute" } },
-            new() { Name = "web_search", Description = "Search the web for documentation and solutions", Category = "Research", Author = "openclaw-core", Version = "1.2.0", SafetyRating = SkillSafetyRating.Verified, IsEnabled = true, IsWhitelisted = true, UsageCount = 21, RequiredPermissions = new() { "net.http" } },
-            new() { Name = "web_scrape", Description = "Fetch and parse web page content", Category = "Research", Author = "openclaw-core", Version = "1.1.0", SafetyRating = SkillSafetyRating.Verified, IsEnabled = true, IsWhitelisted = true, UsageCount = 12, RequiredPermissions = new() { "net.http" } },
-            new() { Name = "code_analysis", Description = "Static analysis of Swift/Python source code", Category = "Development", Author = "openclaw-core", Version = "1.3.0", SafetyRating = SkillSafetyRating.Verified, IsEnabled = true, IsWhitelisted = true, UsageCount = 15, RequiredPermissions = new() { "fs.read" } },
-            new() { Name = "backlog_sync", Description = "Parse and update BACKLOG.md task file", Category = "Project", Author = "swiftagent", Version = "1.0.0", SafetyRating = SkillSafetyRating.Community, IsEnabled = true, IsWhitelisted = true, UsageCount = 18, RequiredPermissions = new() { "fs.read", "fs.write" } },
+        // Try to load real state from disk immediately
+        LoadStatusFromDisk();
+        LoadSkillsFromDisk();
 
-            // Disabled / Not whitelisted
-            new() { Name = "docker_ops", Description = "Manage Docker containers and images", Category = "System", Author = "community-contrib", Version = "0.9.2", SafetyRating = SkillSafetyRating.Community, IsEnabled = false, IsWhitelisted = false, UsageCount = 0, RequiredPermissions = new() { "shell.execute", "docker.api" } },
-            new() { Name = "db_query", Description = "Execute SQL queries against local databases", Category = "Data", Author = "community-contrib", Version = "0.8.1", SafetyRating = SkillSafetyRating.Unreviewed, IsEnabled = false, IsWhitelisted = false, UsageCount = 0, RequiredPermissions = new() { "db.connect", "db.query" } },
-            new() { Name = "email_send", Description = "Send emails via SMTP", Category = "Communication", Author = "community-contrib", Version = "1.0.0", SafetyRating = SkillSafetyRating.Unreviewed, IsEnabled = false, IsWhitelisted = false, UsageCount = 0, RequiredPermissions = new() { "net.smtp" } },
-            new() { Name = "screenshot", Description = "Capture screen and window screenshots", Category = "System", Author = "community-contrib", Version = "0.7.0", SafetyRating = SkillSafetyRating.Flagged, IsEnabled = false, IsWhitelisted = false, UsageCount = 0, RequiredPermissions = new() { "screen.capture" } },
-            new() { Name = "crypto_wallet", Description = "Interact with cryptocurrency wallets", Category = "Finance", Author = "unknown", Version = "0.2.0", SafetyRating = SkillSafetyRating.Flagged, IsEnabled = false, IsWhitelisted = false, UsageCount = 0, RequiredPermissions = new() { "net.http", "fs.read", "fs.write" } },
-            new() { Name = "clipboard_access", Description = "Read and write system clipboard", Category = "System", Author = "community-contrib", Version = "0.5.0", SafetyRating = SkillSafetyRating.Unreviewed, IsEnabled = false, IsWhitelisted = false, UsageCount = 0, RequiredPermissions = new() { "clipboard.read", "clipboard.write" } },
-        };
-
-        var activeConvo = new OpenClawConversation
-        {
-            Title = "CloudKit Sync Implementation",
-            CreatedAt = DateTime.Now.AddHours(-1),
-            LastMessageAt = DateTime.Now.AddMinutes(-5),
-            MessageCount = 8,
-            IsActive = true,
-            Messages = new List<ChatMessage>
-            {
-                new() { Role = ChatRole.User, Content = "Implement CloudKit sync for game saves in the GameAuth package. It should support saving and loading game state to iCloud.", Timestamp = DateTime.Now.AddMinutes(-60) },
-                new() { Role = ChatRole.Assistant, Content = "I'll implement CloudKit sync for game saves. Let me start by analyzing the existing GameAuth package structure and then create a CloudKitSyncManager.\n\nFirst, let me check the current package layout.", Timestamp = DateTime.Now.AddMinutes(-59) },
-                new() { Role = ChatRole.Skill, Content = "Executed: file_manager.list_directory(\"Packages/GameAuth/Sources\")\n\nFound 3 files:\n- GameCenterManager.swift\n- AuthenticationState.swift\n- PlayerProfile.swift", Timestamp = DateTime.Now.AddMinutes(-58), SkillName = "file_manager" },
-                new() { Role = ChatRole.Assistant, Content = "Good. I can see the existing structure. I'll create a new `CloudKitSyncManager.swift` file that integrates with the existing authentication flow. Let me also search for CloudKit best practices.", Timestamp = DateTime.Now.AddMinutes(-57) },
-                new() { Role = ChatRole.Skill, Content = "Executed: web_search.query(\"CloudKit CKRecord game save Swift async await 2026\")\n\nFound 5 relevant results about CloudKit game save patterns.", Timestamp = DateTime.Now.AddMinutes(-55), SkillName = "web_search" },
-                new() { Role = ChatRole.Assistant, Content = "Based on the research, I'll implement the sync manager using CKRecord with async/await. Here's my plan:\n\n1. Create `CloudKitSyncManager.swift` with save/load/delete operations\n2. Define a `GameSaveRecord` model for CKRecord mapping\n3. Add conflict resolution with last-writer-wins strategy\n4. Update Package.swift to include CloudKit framework\n\nLet me start creating the files.", Timestamp = DateTime.Now.AddMinutes(-52) },
-                new() { Role = ChatRole.Skill, Content = "Executed: file_manager.write(\"Packages/GameAuth/Sources/CloudKitSyncManager.swift\")\n\nCreated CloudKitSyncManager.swift (127 lines)\n\nExecuted: swift_build.run(\"Packages/GameAuth\")\n\nBuild succeeded. 0 warnings.", Timestamp = DateTime.Now.AddMinutes(-40), SkillName = "swift_build" },
-                new() { Role = ChatRole.Assistant, Content = "CloudKit sync manager has been implemented and builds successfully. The implementation includes:\n\n- `CloudKitSyncManager`: Main actor-isolated singleton\n- `save(gameState:)`: Saves game state to iCloud\n- `load(recordId:)`: Loads game state from iCloud\n- `delete(recordId:)`: Removes a save from iCloud\n- `syncAll()`: Fetches all saves and resolves conflicts\n\nWould you like me to add unit tests or proceed to the next backlog task?", Timestamp = DateTime.Now.AddMinutes(-38) },
-            }
-        };
-
-        Conversations = new List<OpenClawConversation>
-        {
-            activeConvo,
-            new() { Title = "SpriteKit Physics Setup", CreatedAt = DateTime.Now.AddHours(-4), LastMessageAt = DateTime.Now.AddHours(-3), MessageCount = 12, IsActive = false },
-            new() { Title = "Audio Engine Architecture", CreatedAt = DateTime.Now.AddDays(-1), LastMessageAt = DateTime.Now.AddDays(-1).AddHours(2), MessageCount = 6, IsActive = false },
-        };
-
-        ActiveConversation = activeConvo;
+        _pollTimer = new Timer(PollStatus, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3));
     }
+
+    // ── Polling ─────────────────────────────────────────────────
 
     private void PollStatus(object? state)
     {
         try
         {
+            LoadStatusFromDisk();
             ReadOpenClawLog();
 
-            // Check if the agent process is running
+            // Check if agent process is alive
             if (_agentProcess is { HasExited: false })
             {
                 Status.ConnectionState = OpenClawConnectionState.Connected;
@@ -127,6 +84,104 @@ public class OpenClawService : IOpenClawService
         }
     }
 
+    private void LoadStatusFromDisk()
+    {
+        if (!File.Exists(_statusPath)) return;
+
+        try
+        {
+            var json = File.ReadAllText(_statusPath);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("connection_state", out var cs))
+            {
+                Status.ConnectionState = cs.GetString() switch
+                {
+                    "connected" => OpenClawConnectionState.Connected,
+                    "connecting" => OpenClawConnectionState.Connecting,
+                    "error" => OpenClawConnectionState.Error,
+                    _ => OpenClawConnectionState.Disconnected
+                };
+            }
+
+            if (root.TryGetProperty("model", out var m))
+                Status.SelectedModel = m.GetString() ?? Status.SelectedModel;
+            if (root.TryGetProperty("version", out var v))
+                Status.Version = v.GetString() ?? Status.Version;
+            if (root.TryGetProperty("active_skills_count", out var asc))
+                Status.ActiveSkillsCount = asc.GetInt32();
+            if (root.TryGetProperty("total_skills_count", out var tsc))
+                Status.TotalSkillsCount = tsc.GetInt32();
+            if (root.TryGetProperty("safety_scanner", out var ss))
+                Status.SafetyScannerEnabled = ss.GetBoolean();
+
+            if (root.TryGetProperty("cost", out var cost))
+            {
+                if (cost.TryGetProperty("total_tokens", out var tt))
+                    Status.TokensUsedToday = tt.GetInt32();
+            }
+        }
+        catch
+        {
+            // Corrupted or partially written — skip this cycle
+        }
+    }
+
+    private void LoadSkillsFromDisk()
+    {
+        if (!File.Exists(_skillsPath)) return;
+
+        try
+        {
+            var json = File.ReadAllText(_skillsPath);
+            using var doc = JsonDocument.Parse(json);
+            var arr = doc.RootElement;
+
+            Skills.Clear();
+            foreach (var skill in arr.EnumerateArray())
+            {
+                var name = skill.GetProperty("name").GetString() ?? "";
+                var desc = skill.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "";
+
+                Skills.Add(new OpenClawSkill
+                {
+                    Name = name,
+                    Description = desc,
+                    Category = CategorizeSkill(name),
+                    Author = "openclaw",
+                    Version = "1.0.0",
+                    SafetyRating = RateSkillSafety(name),
+                    IsEnabled = true,
+                    IsWhitelisted = true,
+                });
+            }
+
+            Status.ActiveSkillsCount = Skills.Count(s => s.IsEnabled);
+            Status.TotalSkillsCount = Skills.Count;
+        }
+        catch
+        {
+            // Will retry on next poll
+        }
+    }
+
+    private static string CategorizeSkill(string name) => name switch
+    {
+        "shell_exec" => "System",
+        "file_read" or "file_write" or "file_patch" or "file_list" => "Files",
+        "swift_build" or "swift_test" or "search_code" => "Development",
+        "git_status" or "git_diff" or "git_commit" => "Git",
+        "backlog_read" or "backlog_update_task" => "Project",
+        _ => "Other"
+    };
+
+    private static SkillSafetyRating RateSkillSafety(string name) => name switch
+    {
+        "shell_exec" or "git_commit" or "file_write" or "file_patch" => SkillSafetyRating.Community,
+        _ => SkillSafetyRating.Verified
+    };
+
     private void ReadOpenClawLog()
     {
         if (!File.Exists(_logPath)) return;
@@ -139,12 +194,10 @@ public class OpenClawService : IOpenClawService
 
         while (reader.ReadLine() is { } line)
         {
-            // Parse log lines and update token counts / status
+            // Extract token counts from cost log lines
             if (line.Contains("tokens)", StringComparison.OrdinalIgnoreCase))
             {
-                // Extract token usage from cost log lines
-                var match = System.Text.RegularExpressions.Regex.Match(
-                    line, @"(\d[\d,]+)\s+tokens");
+                var match = Regex.Match(line, @"(\d[\d,]+)\s+tokens");
                 if (match.Success && int.TryParse(
                     match.Groups[1].Value.Replace(",", ""), out var tokens))
                 {
@@ -152,26 +205,49 @@ public class OpenClawService : IOpenClawService
                 }
             }
 
-            if (line.Contains("Calling skill:", StringComparison.OrdinalIgnoreCase))
+            // Feed agent text and skill calls into the active conversation
+            if (ActiveConversation != null)
             {
-                // Feed skill calls into the active conversation
-                var msg = new ChatMessage
+                ChatMessage? msg = null;
+
+                if (line.Contains("Calling skill:", StringComparison.OrdinalIgnoreCase))
                 {
-                    Role = ChatRole.Skill,
-                    Content = line,
-                    Timestamp = DateTime.Now
-                };
-                ActiveConversation?.Messages.Add(msg);
-                MessageReceived?.Invoke(this, msg);
+                    var skillMatch = Regex.Match(line, @"Calling skill:\s*(\w+)");
+                    msg = new ChatMessage
+                    {
+                        Role = ChatRole.Skill,
+                        Content = line[(line.IndexOf("Calling skill:") + 15)..].Trim(),
+                        SkillName = skillMatch.Success ? skillMatch.Groups[1].Value : null,
+                        Timestamp = DateTime.Now
+                    };
+                }
+                else if (line.Contains("Agent:", StringComparison.OrdinalIgnoreCase))
+                {
+                    msg = new ChatMessage
+                    {
+                        Role = ChatRole.Assistant,
+                        Content = line[(line.IndexOf("Agent:") + 7)..].Trim(),
+                        Timestamp = DateTime.Now
+                    };
+                }
+
+                if (msg != null)
+                {
+                    ActiveConversation.Messages.Add(msg);
+                    ActiveConversation.MessageCount++;
+                    ActiveConversation.LastMessageAt = DateTime.Now;
+                    MessageReceived?.Invoke(this, msg);
+                }
             }
         }
 
         _lastLogPosition = fs.Position;
     }
 
+    // ── Connect / Disconnect (launches real Python agent) ───────
+
     public Task ConnectAsync()
     {
-        // Launch the OpenClaw agent process
         var startInfo = new System.Diagnostics.ProcessStartInfo
         {
             FileName = "python",
@@ -188,10 +264,34 @@ public class OpenClawService : IOpenClawService
             _agentProcess = System.Diagnostics.Process.Start(startInfo);
             Status.ConnectionState = OpenClawConnectionState.Connected;
             Status.ConnectedSince = DateTime.Now;
+
+            // Start a conversation to track this session
+            var convo = new OpenClawConversation
+            {
+                Title = $"Session {DateTime.Now:yyyy-MM-dd HH:mm}",
+                IsActive = true
+            };
+            if (ActiveConversation != null) ActiveConversation.IsActive = false;
+            Conversations.Insert(0, convo);
+            ActiveConversation = convo;
+            Status.ConversationCount = Conversations.Count;
         }
-        catch
+        catch (Exception ex)
         {
             Status.ConnectionState = OpenClawConnectionState.Error;
+            // Surface the error so the user knows what went wrong
+            var errConvo = new OpenClawConversation { Title = "Connection Error", IsActive = true };
+            errConvo.Messages.Add(new ChatMessage
+            {
+                Role = ChatRole.System,
+                Content = $"Failed to start agent: {ex.Message}\n\n"
+                    + "Make sure Python and the anthropic package are installed:\n"
+                    + "  pip install anthropic\n"
+                    + "  export ANTHROPIC_API_KEY=sk-...\n"
+                    + "  python -m OpenClaw"
+            });
+            Conversations.Insert(0, errConvo);
+            ActiveConversation = errConvo;
         }
 
         StatusChanged?.Invoke(this, Status);
@@ -212,6 +312,8 @@ public class OpenClawService : IOpenClawService
         return Task.CompletedTask;
     }
 
+    // ── Remaining interface methods ─────────────────────────────
+
     public Task<OpenClawStatus> GetStatusAsync() => Task.FromResult(Status);
 
     public Task UpdateConfigAsync(OpenClawConfig config)
@@ -223,7 +325,11 @@ public class OpenClawService : IOpenClawService
         return Task.CompletedTask;
     }
 
-    public Task<List<OpenClawSkill>> GetSkillsAsync() => Task.FromResult(Skills.ToList());
+    public Task<List<OpenClawSkill>> GetSkillsAsync()
+    {
+        LoadSkillsFromDisk();  // Refresh from disk
+        return Task.FromResult(Skills.ToList());
+    }
 
     public Task ToggleSkillAsync(string skillId, bool enabled)
     {
@@ -251,8 +357,7 @@ public class OpenClawService : IOpenClawService
     public Task<OpenClawConversation> StartConversationAsync(string title)
     {
         var convo = new OpenClawConversation { Title = title, IsActive = true };
-        if (ActiveConversation != null)
-            ActiveConversation.IsActive = false;
+        if (ActiveConversation != null) ActiveConversation.IsActive = false;
         Conversations.Insert(0, convo);
         ActiveConversation = convo;
         Status.ConversationCount = Conversations.Count;
@@ -270,18 +375,23 @@ public class OpenClawService : IOpenClawService
         convo.LastMessageAt = DateTime.Now;
         MessageReceived?.Invoke(this, userMsg);
 
-        // Simulate assistant response
-        var response = new ChatMessage
+        // When connected to a running agent, the response will come through
+        // the log polling. When disconnected, tell the user.
+        if (Status.ConnectionState != OpenClawConnectionState.Connected)
         {
-            Role = ChatRole.Assistant,
-            Content = $"Acknowledged. I'll work on: \"{message}\"\n\nLet me analyze the codebase and determine the best approach.",
-            Timestamp = DateTime.Now.AddSeconds(1)
-        };
-        convo.Messages.Add(response);
-        convo.MessageCount++;
-        MessageReceived?.Invoke(this, response);
+            var hint = new ChatMessage
+            {
+                Role = ChatRole.System,
+                Content = "Agent is not running. Press Connect to start the OpenClaw agent.",
+                Timestamp = DateTime.Now
+            };
+            convo.Messages.Add(hint);
+            convo.MessageCount++;
+            MessageReceived?.Invoke(this, hint);
+            return Task.FromResult(hint);
+        }
 
-        return Task.FromResult(response);
+        return Task.FromResult(userMsg);
     }
 
     public Task<List<OpenClawConversation>> GetConversationsAsync()

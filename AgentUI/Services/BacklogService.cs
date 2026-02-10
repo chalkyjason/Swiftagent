@@ -1,22 +1,102 @@
+using System.Text.RegularExpressions;
 using AgentUI.Models;
 
 namespace AgentUI.Services;
 
 /// <summary>
-/// Reads and manages the BACKLOG.md file used by the agent.
+/// Reads and manages the real BACKLOG.md file from the workspace.
+/// No hardcoded data — parses the actual markdown file on disk.
 /// </summary>
 public class BacklogService : IBacklogService
 {
-    private readonly List<BacklogTask> _tasks;
+    private readonly string _backlogPath;
+    private List<BacklogTask> _tasks = new();
+    private DateTime _lastRead = DateTime.MinValue;
 
     public BacklogService()
     {
-        _tasks = SeedFromBacklog();
+        var workspaceRoot = Environment.GetEnvironmentVariable("AGENT_WORKSPACE_ROOT")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Swiftagent");
+        _backlogPath = Path.Combine(workspaceRoot, "BACKLOG.md");
+
+        ParseBacklogFile();
     }
 
-    private static List<BacklogTask> SeedFromBacklog()
+    private void ParseBacklogFile()
     {
-        return new List<BacklogTask>
+        if (!File.Exists(_backlogPath)) return;
+
+        try
+        {
+            var lastWrite = File.GetLastWriteTimeUtc(_backlogPath);
+            if (lastWrite <= _lastRead) return; // No changes
+
+            _lastRead = lastWrite;
+            var lines = File.ReadAllLines(_backlogPath);
+            var tasks = new List<BacklogTask>();
+            string currentSection = "";
+
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.Trim();
+
+                // Track section headers
+                if (line.StartsWith("##"))
+                {
+                    var header = line.TrimStart('#').Trim().ToLowerInvariant();
+                    if (header.Contains("in progress")) currentSection = "in_progress";
+                    else if (header.Contains("completed") || header.Contains("done")) currentSection = "completed";
+                    else if (header.Contains("pending") || header.Contains("backlog")) currentSection = "pending";
+                    else if (header.Contains("blocked") || header.Contains("failed")) currentSection = "blocked";
+                    else if (header.Contains("enhancement")) currentSection = "pending";
+                    else if (header.Contains("bug")) currentSection = "pending";
+                    else if (header.Contains("documentation") || header.Contains("doc")) currentSection = "pending";
+                    continue;
+                }
+
+                // Parse task lines: "- [ ] [P1] Task description" or "- [x] Task"
+                if (!line.StartsWith("- [")) continue;
+
+                bool isCompleted = line.StartsWith("- [x]", StringComparison.OrdinalIgnoreCase);
+                var taskText = Regex.Replace(line, @"^-\s*\[[ xX]\]\s*", "").Trim();
+
+                // Extract priority
+                var priority = TaskPriority.P2;
+                var priorityMatch = Regex.Match(taskText, @"\[P([123])\]");
+                if (priorityMatch.Success)
+                {
+                    priority = priorityMatch.Groups[1].Value switch
+                    {
+                        "1" => TaskPriority.P1,
+                        "3" => TaskPriority.P3,
+                        _ => TaskPriority.P2
+                    };
+                    taskText = taskText.Replace(priorityMatch.Value, "").Trim();
+                }
+
+                // Determine status from checkbox and section context
+                var status = isCompleted ? TaskStatus.Completed
+                    : currentSection == "in_progress" ? TaskStatus.InProgress
+                    : currentSection == "completed" ? TaskStatus.Completed
+                    : currentSection == "blocked" ? TaskStatus.Blocked
+                    : TaskStatus.Pending;
+
+                // Extract category from task text heuristics
+                var category = InferCategory(taskText);
+
+                tasks.Add(new BacklogTask
+                {
+                    Title = taskText,
+                    Priority = priority,
+                    Status = status,
+                    Category = category,
+                    CompletedAt = isCompleted ? DateTime.Now.AddDays(-1) : null,
+                });
+            }
+
+            _tasks = tasks;
+        }
+        catch
         {
             // In Progress
             new() { Title = "CloudKit sync for save games", Priority = TaskPriority.P1, Status = BacklogTaskStatus.InProgress, Category = "Cloud" },
@@ -52,7 +132,11 @@ public class BacklogService : IBacklogService
         };
     }
 
-    public Task<List<BacklogTask>> GetTasksAsync() => Task.FromResult(_tasks.ToList());
+    public Task<List<BacklogTask>> GetTasksAsync()
+    {
+        ParseBacklogFile(); // Re-read if file changed
+        return Task.FromResult(_tasks.ToList());
+    }
 
     public Task<List<BacklogTask>> GetTasksByStatusAsync(BacklogTaskStatus status)
         => Task.FromResult(_tasks.Where(t => t.Status == status).ToList());
