@@ -98,27 +98,38 @@ public class BacklogService : IBacklogService
         }
         catch
         {
-            // Keep existing tasks if parse fails
-        }
-    }
+            // In Progress
+            new() { Title = "CloudKit sync for save games", Priority = TaskPriority.P1, Status = BacklogTaskStatus.InProgress, Category = "Cloud" },
+            new() { Title = "Leaderboard UI with SwiftUI", Priority = TaskPriority.P1, Status = BacklogTaskStatus.InProgress, Category = "UI" },
 
-    private static string InferCategory(string title)
-    {
-        var t = title.ToLowerInvariant();
-        if (t.Contains("cloudkit") || t.Contains("icloud") || t.Contains("sync")) return "Cloud";
-        if (t.Contains("game center") || t.Contains("leaderboard") || t.Contains("achievement")) return "GameKit";
-        if (t.Contains("audio") || t.Contains("sound") || t.Contains("spatial")) return "Audio";
-        if (t.Contains("haptic") || t.Contains("vibration")) return "Haptics";
-        if (t.Contains("menu") || t.Contains("ui") || t.Contains("animation") || t.Contains("navigation")) return "UI";
-        if (t.Contains("physics") || t.Contains("collision") || t.Contains("particle")) return "Graphics";
-        if (t.Contains("game") || t.Contains("mini") || t.Contains("shooter")) return "Gameplay";
-        if (t.Contains("test")) return "Testing";
-        if (t.Contains("doc")) return "Docs";
-        if (t.Contains("watch") || t.Contains("tvos") || t.Contains("macos")) return "Platform";
-        if (t.Contains("accessibility") || t.Contains("voiceover")) return "Accessibility";
-        if (t.Contains("analytics")) return "Analytics";
-        if (t.Contains("security") || t.Contains("recording")) return "Security";
-        return "General";
+            // Pending High Priority
+            new() { Title = "iCloud save game persistence", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Pending, Category = "Cloud" },
+            new() { Title = "Game Center leaderboard submission", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Pending, Category = "GameKit" },
+            new() { Title = "Achievement system integration", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Pending, Category = "GameKit" },
+
+            // Pending Medium Priority
+            new() { Title = "Additional mini-games (Puzzle, Runner)", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "Gameplay" },
+            new() { Title = "Particle effects system", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "Graphics" },
+            new() { Title = "Spatial audio support", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "Audio" },
+            new() { Title = "Advanced haptic patterns", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "Haptics" },
+            new() { Title = "Menu transition animations", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "UI" },
+
+            // Pending Low Priority
+            new() { Title = "watchOS companion app", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Platform" },
+            new() { Title = "tvOS remote input support", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Platform" },
+            new() { Title = "Accessibility VoiceOver support", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Accessibility" },
+            new() { Title = "Analytics event tracking", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Analytics" },
+            new() { Title = "Screen recording prevention", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Security" },
+
+            // Completed
+            new() { Title = "Game Center authentication", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "GameKit", CompletedAt = DateTime.Now.AddDays(-5) },
+            new() { Title = "Core navigation system", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "UI", CompletedAt = DateTime.Now.AddDays(-4) },
+            new() { Title = "Game loop with fixed timestep", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "Engine", CompletedAt = DateTime.Now.AddDays(-4) },
+            new() { Title = "Base game scene (SpriteKit)", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "Engine", CompletedAt = DateTime.Now.AddDays(-3) },
+            new() { Title = "Sound manager with AVFoundation", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "Audio", CompletedAt = DateTime.Now.AddDays(-2) },
+            new() { Title = "Haptic feedback engine", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Completed, Category = "Haptics", CompletedAt = DateTime.Now.AddDays(-2) },
+            new() { Title = "SpaceShooter sample app", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "App", CompletedAt = DateTime.Now.AddDays(-1) },
+        };
     }
 
     public Task<List<BacklogTask>> GetTasksAsync()
@@ -127,11 +138,8 @@ public class BacklogService : IBacklogService
         return Task.FromResult(_tasks.ToList());
     }
 
-    public Task<List<BacklogTask>> GetTasksByStatusAsync(TaskStatus status)
-    {
-        ParseBacklogFile();
-        return Task.FromResult(_tasks.Where(t => t.Status == status).ToList());
-    }
+    public Task<List<BacklogTask>> GetTasksByStatusAsync(BacklogTaskStatus status)
+        => Task.FromResult(_tasks.Where(t => t.Status == status).ToList());
 
     public Task AddTaskAsync(BacklogTask task)
     {

@@ -1,12 +1,31 @@
-# SwiftAgent - Autonomous iOS Game Development Infrastructure
+# Swiftagent - Autonomous Game Development Infrastructure
 
-A comprehensive framework for building reusable iOS game components using Swift Package Manager, designed to be maintained and extended by an autonomous AI agent.
+A comprehensive framework for building reusable iOS/macOS game components using Swift Package Manager, with a cross-platform .NET MAUI control panel and autonomous AI agents (OpenClaw + legacy Agent).
 
 ## Architecture Overview
 
 ```
-/SwiftAgent
-├── /Agent                    # Python-based autonomous agent infrastructure
+/Swiftagent
+├── /AgentUI                  # .NET MAUI cross-platform control panel
+│   ├── /Platforms
+│   │   ├── /MacCatalyst     # macOS (Mac Catalyst) support
+│   │   ├── /Windows         # Windows 10+ support
+│   │   ├── /iOS             # iOS 16+ support
+│   │   └── /Android         # Android 5.0+ support
+│   ├── /Services            # Agent monitoring, backlog, OpenClaw services
+│   ├── /ViewModels          # MVVM view models (Dashboard, Backlog, Console, etc.)
+│   ├── /Views               # XAML pages (Dashboard, OpenClaw, Skills, etc.)
+│   └── /Models              # Data models (AgentState, OpenClawModels)
+│
+├── /OpenClaw                 # Python-based autonomous improvement agent
+│   ├── agent.py             # Main OODA improvement loop
+│   ├── config.py            # Configuration management
+│   ├── safety.py            # Sandboxing and safety guards
+│   ├── scanner.py           # Code quality scanner
+│   ├── /skills              # Tool definitions and executor
+│   └── /prompts             # System prompts
+│
+├── /Agent                    # Legacy Python agent infrastructure
 │   ├── game_agent.py        # Main agent loop (OODA pattern)
 │   ├── config.py            # Configuration management
 │   ├── safety_wrapper.py    # Sandboxing and safety policies
@@ -232,15 +251,97 @@ let package = Package(
 
 3. Create your app entry point in `Sources/MyGameApp.swift`
 
-## Autonomous Agent
+## AgentUI - Cross-Platform Control Panel (.NET MAUI)
 
-The `/Agent` directory contains a Python-based autonomous agent that can:
-- Continuously process tasks from `BACKLOG.md`
-- Generate and test Swift code
-- Maintain and extend the package ecosystem
-- Self-correct on build/test failures
+A .NET MAUI app for monitoring and controlling the autonomous agents. Runs on Mac, Windows, iOS, and Android.
 
-### Running the Agent
+### Supported Platforms
+
+| Platform | Status | Min Version |
+|----------|--------|-------------|
+| macOS (Mac Catalyst) | Supported | macOS 16.0+ |
+| Windows | Supported | Windows 10 (17763+) |
+| iOS | Supported | iOS 16.0+ |
+| Android | Supported | API 21 (5.0+) |
+
+### Pages
+
+- **Dashboard** - Agent status overview, iteration tracking, cost monitoring
+- **OpenClaw** - Chat interface and configuration for the OpenClaw agent
+- **Skills** - Browse, enable/disable, and manage agent skills
+- **Backlog** - View and manage the task backlog
+- **Console** - Live agent log output
+- **Safety & Cost** - Safety events, blocked commands, budget tracking
+- **Settings** - Agent configuration (workspace path, model, budget, etc.)
+
+### Prerequisites (Mac)
+
+1. Install [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+2. Install the MAUI workload:
+   ```bash
+   sudo dotnet workload install maui
+   ```
+3. Xcode 15+ must be installed (for Mac Catalyst builds)
+
+### Running on Mac
+
+```bash
+cd AgentUI
+
+# Restore dependencies
+dotnet restore
+
+# Build and run on Mac (via Mac Catalyst)
+dotnet build -f net8.0-maccatalyst
+dotnet run -f net8.0-maccatalyst
+```
+
+### Running on Windows
+
+```powershell
+cd AgentUI
+
+# Restore dependencies
+dotnet restore
+
+# Build and run on Windows
+dotnet build -f net8.0-windows10.0.19041.0
+dotnet run -f net8.0-windows10.0.19041.0
+```
+
+## OpenClaw - Autonomous Improvement Agent
+
+The `/OpenClaw` directory contains a Python-based autonomous agent powered by Claude that iterates on the codebase using an OODA (Observe, Orient, Decide, Act) loop.
+
+### Features
+
+- Processes tasks from `BACKLOG.md` by priority
+- 13 built-in skills: file read/write/patch, shell exec, swift build/test, git operations, code search
+- Safety sandbox: path confinement, command blocklist, file size limits, safe deletion
+- Code quality scanner: finds TODOs, force unwraps, empty catches, missing tests
+- Daily cost budget enforcement
+
+### Running OpenClaw
+
+```bash
+# Set your Anthropic API key
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Install dependencies
+pip install -r OpenClaw/requirements.txt
+
+# Run the agent
+python -m OpenClaw
+
+# With options
+python -m OpenClaw --model claude-opus-4-6 --budget 10.0 --max-iterations 5
+```
+
+## Legacy Agent
+
+The `/Agent` directory contains the original Python-based autonomous agent with RAG support.
+
+### Running the Legacy Agent
 
 ```bash
 cd Agent
@@ -257,7 +358,7 @@ export AGENT_DAILY_BUDGET=5.0
 export AGENT_LOG_LEVEL=INFO
 ```
 
-### Safety Features
+### Safety Features (both agents)
 
 - **Sandboxing**: Agent confined to workspace directory
 - **Command filtering**: Dangerous commands blocked
@@ -267,12 +368,14 @@ export AGENT_LOG_LEVEL=INFO
 
 ## Requirements
 
-- Swift 5.9+
-- iOS 16+ / macOS 13+ / tvOS 16+
-- Xcode 15+
-- Python 3.10+ (for agent)
+| Component | Requirements |
+|-----------|-------------|
+| Swift Packages | Swift 5.9+, Xcode 15+, iOS 16+ / macOS 13+ / tvOS 16+ |
+| AgentUI (MAUI) | .NET 8 SDK, MAUI workload, Xcode 15+ (Mac) or VS 2022 (Windows) |
+| OpenClaw Agent | Python 3.10+, Anthropic API key |
+| Legacy Agent | Python 3.10+ |
 
-## Building
+## Building Swift Packages
 
 ```bash
 # Build all packages
