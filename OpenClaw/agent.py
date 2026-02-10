@@ -60,6 +60,15 @@ class CostTracker:
             f"({self.input_tokens + self.output_tokens:,} tokens)"
         )
 
+    def to_dict(self) -> dict:
+        return {
+            "cost_today": round(self.cost_today, 4),
+            "daily_budget": self.daily_budget,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.input_tokens + self.output_tokens,
+        }
+
 
 class OpenClawAgent:
     """Main agent that runs improvement tasks against the repository."""
@@ -83,6 +92,30 @@ class OpenClawAgent:
 
     # ── Initialization ───────────────────────────────────────────
 
+    def _write_status(self, current_task: str = "", phase: str = "idle"):
+        """Write status.json for the MAUI UI to read."""
+        status = {
+            "connection_state": "connected",
+            "agent_name": "Swiftagent-Claw",
+            "model": self.config.model,
+            "version": "1.0.0",
+            "phase": phase,
+            "current_task": current_task,
+            "iteration": self.iteration,
+            "max_iterations": self.config.max_iterations,
+            "dry_run": self.config.dry_run,
+            "safety_scanner": self.config.sandbox_enabled,
+            "files_created": self.safety.files_created,
+            "blocked_count": self.safety.blocked_count,
+            "cost": self.cost.to_dict(),
+            "skills": [s["name"] for s in get_skill_schemas()],
+            "active_skills_count": len(get_skill_schemas()),
+            "total_skills_count": len(get_skill_schemas()),
+            "timestamp": datetime.now().isoformat(),
+        }
+        status_path = self.config.workspace_root / "openclaw_status.json"
+        status_path.write_text(json.dumps(status, indent=2))
+
     def initialize(self):
         """Set up the agent: validate config, init API client."""
         _setup_logging(self.config)
@@ -100,6 +133,12 @@ class OpenClawAgent:
         logger.info(f"Budget: ${self.config.daily_budget:.2f}/day")
         logger.info(f"Dry run: {self.config.dry_run}")
         logger.info("Initialization complete.")
+
+        # Write skills.json so the MAUI UI can discover available skills
+        skills_path = self.config.workspace_root / "openclaw_skills.json"
+        skills_path.write_text(json.dumps(get_skill_schemas(), indent=2))
+
+        self._write_status(phase="initialized")
 
     # ── Main loop ────────────────────────────────────────────────
 
@@ -137,13 +176,17 @@ class OpenClawAgent:
             logger.info(f"{'='*60}")
 
             try:
+                self._write_status(phase="running")
                 self._run_next_task()
+                self._write_status(phase="idle")
             except Exception as e:
                 logger.error(f"Iteration failed: {e}", exc_info=True)
+                self._write_status(phase="error", current_task=str(e))
                 time.sleep(5)
 
             time.sleep(self.config.loop_delay_seconds)
 
+        self._write_status(phase="stopped")
         logger.info(
             f"Agent stopped. Iterations: {self.iteration}, "
             f"Cost: ${self.cost.cost_today:.4f}"

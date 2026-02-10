@@ -1,10 +1,11 @@
+using System.Text.RegularExpressions;
 using AgentUI.Models;
 
 namespace AgentUI.Services;
 
 /// <summary>
-/// Service that monitors and controls the Python agent process.
-/// Reads agent.log and checkpoint files to track state.
+/// Service that monitors the OpenClaw agent by reading openclaw.log.
+/// No fake seed data — all state comes from real log files on disk.
 /// </summary>
 public class AgentService : IAgentService
 {
@@ -27,7 +28,7 @@ public class AgentService : IAgentService
     {
         _workspaceRoot = Environment.GetEnvironmentVariable("AGENT_WORKSPACE_ROOT")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Swiftagent");
-        _logPath = Path.Combine(_workspaceRoot, "agent.log");
+        _logPath = Path.Combine(_workspaceRoot, "openclaw.log");
 
         Config = new AgentConfig
         {
@@ -36,68 +37,47 @@ public class AgentService : IAgentService
             LogLevel = Environment.GetEnvironmentVariable("AGENT_LOG_LEVEL") ?? "INFO"
         };
 
-        _pollTimer = new Timer(PollAgentState, null, TimeSpan.Zero, TimeSpan.FromSeconds(2));
-        SeedDemoData();
-    }
-
-    private void SeedDemoData()
-    {
+        // Start with real empty state
         Status = new AgentStatus
         {
-            IsRunning = true,
-            CurrentPhase = AgentPhase.Orient,
-            CurrentTask = "Implement CloudKit sync for game saves",
-            CompletedTasks = 7,
-            TotalTasks = 22,
-            CostToday = 1.37,
-            DailyBudget = 5.00,
-            FilesCreatedThisSession = 12,
-            SessionStart = DateTime.Now.AddHours(-2.5),
-            RecentActions = new List<string>
+            IsRunning = false,
+            CurrentPhase = AgentPhase.Idle,
+            DailyBudget = Config.DailyBudget,
+            SessionStart = DateTime.Now,
+        };
+
+        // Also read the legacy agent.log if it exists
+        ReadExistingLog(Path.Combine(_workspaceRoot, "agent.log"));
+        ReadExistingLog(_logPath);
+
+        _pollTimer = new Timer(PollAgentState, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    /// <summary>Read an entire log file for historical entries.</summary>
+    private void ReadExistingLog(string path)
+    {
+        if (!File.Exists(path)) return;
+
+        try
+        {
+            foreach (var line in File.ReadLines(path))
             {
-                "Completed: Add haptic feedback patterns",
-                "Completed: Create base game scene class",
-                "Completed: Implement sound manager",
-                "Started: CloudKit sync for game saves",
-                "Fetched context from vector store (3 relevant chunks)"
+                var entry = ParseLogLine(line);
+                if (entry != null)
+                {
+                    Logs.Add(entry);
+                    ProcessLogEntry(entry);
+                }
             }
-        };
 
-        Logs = new List<LogEntry>
+            // If this is the openclaw log, remember the position for tail-follow
+            if (path == _logPath)
+                _lastLogPosition = new FileInfo(path).Length;
+        }
+        catch
         {
-            new() { Timestamp = DateTime.Now.AddMinutes(-45), Level = "INFO", Message = "Agent started — OODA loop initialized", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-44), Level = "INFO", Message = "OBSERVE: Fetched task [P1] CloudKit sync from BACKLOG.md", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-43), Level = "INFO", Message = "ORIENT: Querying vector store for CloudKit patterns", Source = "context_manager" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-42), Level = "INFO", Message = "Retrieved 3 relevant context chunks (1,847 tokens)", Source = "context_manager" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-40), Level = "INFO", Message = "DECIDE: Planning implementation — 4 files to create/modify", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-38), Level = "WARN", Message = "Token usage approaching 80% of context window", Source = "context_manager" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-35), Level = "INFO", Message = "ACT: Creating CloudKitSyncManager.swift", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-30), Level = "INFO", Message = "ACT: Modifying GameAuth/Package.swift — adding CloudKit dependency", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-25), Level = "INFO", Message = "VERIFY: Running swift build...", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-23), Level = "ERROR", Message = "Build failed: Missing import CloudKit in CloudKitSyncManager.swift", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-22), Level = "INFO", Message = "ACT: Fixing missing import statement", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-20), Level = "INFO", Message = "VERIFY: Running swift build... SUCCESS", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-18), Level = "INFO", Message = "VERIFY: Running swift test... 14/14 passed", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-15), Level = "INFO", Message = "COMMIT: Changes committed — 'Add CloudKit sync manager'", Source = "game_agent" },
-            new() { Timestamp = DateTime.Now.AddMinutes(-10), Level = "INFO", Message = "Cost update: $0.23 for this task cycle (total today: $1.37)", Source = "game_agent" },
-        };
-
-        SafetyEvents = new List<SafetyEvent>
-        {
-            new() { Timestamp = DateTime.Now.AddHours(-2), EventType = "PATH_VALIDATION", Details = "Blocked access to /etc/passwd — outside workspace", WasBlocked = true },
-            new() { Timestamp = DateTime.Now.AddHours(-1.5), EventType = "COMMAND_FILTER", Details = "Blocked 'rm -rf /' — dangerous command pattern", WasBlocked = true },
-            new() { Timestamp = DateTime.Now.AddHours(-1), EventType = "FILE_SIZE_CHECK", Details = "Allowed 45KB file creation (limit: 1MB)", WasBlocked = false },
-            new() { Timestamp = DateTime.Now.AddMinutes(-30), EventType = "SAFE_DELETE", Details = "Moved old test file to .trash instead of deleting", WasBlocked = false },
-        };
-
-        CostHistory = new List<CostEntry>
-        {
-            new() { Timestamp = DateTime.Now.AddHours(-2.5), Amount = 0.18, Operation = "Task: Add haptic feedback", TokensUsed = 12_400 },
-            new() { Timestamp = DateTime.Now.AddHours(-2), Amount = 0.31, Operation = "Task: Create base game scene", TokensUsed = 22_100 },
-            new() { Timestamp = DateTime.Now.AddHours(-1.5), Amount = 0.24, Operation = "Task: Implement sound manager", TokensUsed = 16_800 },
-            new() { Timestamp = DateTime.Now.AddHours(-1), Amount = 0.41, Operation = "Task: Physics collision system", TokensUsed = 28_900 },
-            new() { Timestamp = DateTime.Now.AddMinutes(-30), Amount = 0.23, Operation = "Task: CloudKit sync manager", TokensUsed = 15_600 },
-        };
+            // File may be locked — will pick it up on next poll
+        }
     }
 
     private void PollAgentState(object? state)
@@ -105,7 +85,7 @@ public class AgentService : IAgentService
         try
         {
             ReadNewLogEntries();
-            ReadCheckpointState();
+            ReadStatusFile();
             StatusChanged?.Invoke(this, Status);
         }
         catch
@@ -131,46 +111,138 @@ public class AgentService : IAgentService
             {
                 Logs.Add(entry);
                 LogReceived?.Invoke(this, entry);
-
-                if (entry.Message.Contains("BLOCKED", StringComparison.OrdinalIgnoreCase))
-                {
-                    var safetyEvent = new SafetyEvent
-                    {
-                        Timestamp = entry.Timestamp,
-                        EventType = "RUNTIME_BLOCK",
-                        Details = entry.Message,
-                        WasBlocked = true
-                    };
-                    SafetyEvents.Add(safetyEvent);
-                    SafetyEventOccurred?.Invoke(this, safetyEvent);
-                }
+                ProcessLogEntry(entry);
             }
         }
 
         _lastLogPosition = fs.Position;
     }
 
-    private void ReadCheckpointState()
+    /// <summary>Extract status, safety events, and cost from a log entry.</summary>
+    private void ProcessLogEntry(LogEntry entry)
     {
-        var checkpointPath = Path.Combine(_workspaceRoot, ".agent_checkpoint.json");
-        if (!File.Exists(checkpointPath)) return;
-        // Future: parse checkpoint JSON to update agent status
+        var msg = entry.Message;
+
+        // Detect blocked operations -> safety events
+        if (msg.Contains("BLOCKED", StringComparison.OrdinalIgnoreCase))
+        {
+            var ev = new SafetyEvent
+            {
+                Timestamp = entry.Timestamp,
+                EventType = "RUNTIME_BLOCK",
+                Details = msg,
+                WasBlocked = true
+            };
+            SafetyEvents.Add(ev);
+            SafetyEventOccurred?.Invoke(this, ev);
+        }
+
+        // Detect cost lines: "Cost: $0.1234 / $5.00 (12,345 tokens)"
+        var costMatch = Regex.Match(msg, @"Cost:\s*\$([0-9.]+)\s*/\s*\$([0-9.]+)\s*\(([0-9,]+)\s*tokens\)");
+        if (costMatch.Success)
+        {
+            if (double.TryParse(costMatch.Groups[1].Value, out var costVal))
+                Status.CostToday = costVal;
+            if (double.TryParse(costMatch.Groups[2].Value, out var budget))
+                Status.DailyBudget = budget;
+        }
+
+        // Detect phase changes
+        if (msg.Contains("Initialization complete", StringComparison.OrdinalIgnoreCase))
+        {
+            Status.IsRunning = true;
+            Status.CurrentPhase = AgentPhase.Idle;
+        }
+        else if (msg.Contains("Calling skill:", StringComparison.OrdinalIgnoreCase))
+        {
+            Status.CurrentPhase = AgentPhase.Act;
+        }
+        else if (msg.Contains("Task completed", StringComparison.OrdinalIgnoreCase))
+        {
+            Status.CompletedTasks++;
+            Status.CurrentPhase = AgentPhase.Commit;
+            Status.RecentActions.Insert(0, $"Completed: {Status.CurrentTask}");
+            if (Status.RecentActions.Count > 10) Status.RecentActions.RemoveAt(10);
+        }
+        else if (msg.Contains("Agent stopped", StringComparison.OrdinalIgnoreCase))
+        {
+            Status.IsRunning = false;
+            Status.CurrentPhase = AgentPhase.Idle;
+        }
+
+        // Detect task assignment
+        if (msg.Contains("Running single task:", StringComparison.OrdinalIgnoreCase))
+        {
+            Status.CurrentTask = msg[(msg.IndexOf("Running single task:") + 21)..].Trim();
+            Status.CurrentPhase = AgentPhase.Observe;
+            Status.TotalTasks++;
+        }
+
+        // Track file creation
+        if (msg.Contains("Wrote", StringComparison.OrdinalIgnoreCase) && msg.Contains("chars to", StringComparison.OrdinalIgnoreCase))
+        {
+            Status.FilesCreatedThisSession++;
+        }
+    }
+
+    private void ReadStatusFile()
+    {
+        var statusPath = Path.Combine(_workspaceRoot, "openclaw_status.json");
+        if (!File.Exists(statusPath)) return;
+
+        try
+        {
+            var json = File.ReadAllText(statusPath);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("phase", out var phase))
+            {
+                Status.CurrentPhase = phase.GetString()?.ToLowerInvariant() switch
+                {
+                    "running" => AgentPhase.Act,
+                    "initialized" => AgentPhase.Idle,
+                    "stopped" => AgentPhase.Idle,
+                    "error" => AgentPhase.Idle,
+                    _ => Status.CurrentPhase
+                };
+                Status.IsRunning = phase.GetString() is "running" or "initialized";
+            }
+
+            if (root.TryGetProperty("iteration", out var iter))
+                Status.CompletedTasks = iter.GetInt32();
+            if (root.TryGetProperty("max_iterations", out var maxIter))
+                Status.TotalTasks = maxIter.GetInt32();
+            if (root.TryGetProperty("files_created", out var fc))
+                Status.FilesCreatedThisSession = fc.GetInt32();
+
+            if (root.TryGetProperty("cost", out var cost))
+            {
+                if (cost.TryGetProperty("cost_today", out var ct))
+                    Status.CostToday = ct.GetDouble();
+                if (cost.TryGetProperty("daily_budget", out var db))
+                    Status.DailyBudget = db.GetDouble();
+            }
+        }
+        catch
+        {
+            // Will retry next poll
+        }
     }
 
     private static LogEntry? ParseLogLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line)) return null;
 
-        // Expected format: "2024-01-15 10:30:45 - module - LEVEL - message"
+        // Format: "2024-01-15 10:30:45,123 - openclaw.agent - INFO - message"
         var parts = line.Split(" - ", 4);
         if (parts.Length < 4) return new LogEntry { Message = line };
 
-        var level = parts[2].Trim();
         return new LogEntry
         {
-            Timestamp = DateTime.TryParse(parts[0].Trim(), out var ts) ? ts : DateTime.Now,
+            Timestamp = DateTime.TryParse(parts[0].Trim().Split(',')[0], out var ts) ? ts : DateTime.Now,
             Source = parts[1].Trim(),
-            Level = level,
+            Level = parts[2].Trim(),
             Message = parts[3].Trim()
         };
     }
