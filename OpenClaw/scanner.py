@@ -1,11 +1,10 @@
-"""Improvement scanner — analyzes the repo and reports findings.
+"""Workspace scanner — analyzes the repo and reports findings.
 
-Can be run standalone or as part of the agent loop to discover
-what needs improvement before the agent begins work.
+General-purpose scanner that works with any codebase, not tied to Swift.
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from .config import OpenClawConfig
@@ -22,7 +21,13 @@ class Finding:
 
 
 class RepoScanner:
-    """Static analysis scanner for the Swiftagent repo."""
+    """Static analysis scanner for any workspace."""
+
+    SCAN_EXTENSIONS = {
+        ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs",
+        ".java", ".kt", ".cs", ".rb", ".php", ".sh", ".yaml",
+        ".yml", ".toml", ".json", ".md",
+    }
 
     def __init__(self, config: OpenClawConfig):
         self.config = config
@@ -32,149 +37,43 @@ class RepoScanner:
         """Run all scans and return findings."""
         self.findings = []
         self._scan_todos()
-        self._scan_force_unwraps()
-        self._scan_empty_catches()
-        self._scan_missing_docs()
-        self._scan_missing_tests()
         self._scan_backlog()
         return self.findings
 
-    def _swift_files(self) -> list[Path]:
-        """Get all Swift source files, excluding hidden dirs."""
+    def _source_files(self) -> list[Path]:
+        """Get all source files, excluding hidden dirs and node_modules."""
         files = []
-        for f in self.config.workspace_root.rglob("*.swift"):
-            if any(p.startswith(".") for p in f.parts):
+        skip_dirs = {".git", ".openclaw_trash", ".openclaw_checkpoints",
+                     "node_modules", "__pycache__", ".venv", "venv"}
+        for f in self.config.workspace_root.rglob("*"):
+            if any(p in skip_dirs for p in f.parts):
                 continue
-            if "Tests" in f.parts:
-                continue
-            files.append(f)
+            if f.is_file() and f.suffix in self.SCAN_EXTENSIONS:
+                files.append(f)
         return sorted(files)
-
-    def _test_dirs(self) -> list[Path]:
-        """Find test directories in packages."""
-        dirs = []
-        for pkg in self.config.packages_dir.iterdir():
-            if not pkg.is_dir():
-                continue
-            test_dir = pkg / "Tests"
-            dirs.append(test_dir)
-        return dirs
 
     def _scan_todos(self):
         """Find TODO, FIXME, HACK comments in code."""
-        pattern = re.compile(r"//\s*(TODO|FIXME|HACK|XXX)[:\s]*(.*)", re.IGNORECASE)
-        for f in self._swift_files():
-            for i, line in enumerate(f.read_text().split("\n"), 1):
-                m = pattern.search(line)
-                if m:
-                    tag = m.group(1).upper()
-                    msg = m.group(2).strip()
-                    self.findings.append(Finding(
-                        title=f"{tag}: {msg[:60]}",
-                        priority="P2" if tag == "TODO" else "P1",
-                        category="quality",
-                        description=f"{tag} comment at {f.name}:{i}: {msg}",
-                        file=str(f.relative_to(self.config.workspace_root)),
-                        line=i,
-                    ))
-
-    def _scan_force_unwraps(self):
-        """Find force unwrap (!) usage outside of tests."""
-        pattern = re.compile(r"\w+!\s*[^=]")
-        # Heuristic: skip IBOutlet-style patterns and common false positives
-        skip = re.compile(r"(IBOutlet|@objc|#if|#endif|import|///|//)")
-        for f in self._swift_files():
-            for i, line in enumerate(f.read_text().split("\n"), 1):
-                if skip.search(line):
-                    continue
-                if pattern.search(line) and "!" in line:
-                    # Avoid false positives from != and negation
-                    stripped = line.strip()
-                    if stripped.startswith("//") or "!=" in stripped:
-                        continue
-                    if "!" not in stripped.replace("!=", ""):
-                        continue
-                    self.findings.append(Finding(
-                        title=f"Force unwrap in {f.name}",
-                        priority="P2",
-                        category="quality",
-                        description=f"Potential force unwrap at line {i}: {stripped[:80]}",
-                        file=str(f.relative_to(self.config.workspace_root)),
-                        line=i,
-                    ))
-
-    def _scan_empty_catches(self):
-        """Find empty catch blocks."""
-        for f in self._swift_files():
-            content = f.read_text()
-            # Simple heuristic: "catch" followed by empty braces
-            for m in re.finditer(r"catch\s*(\w+\s*)?\{[\s]*\}", content):
-                line_num = content[:m.start()].count("\n") + 1
-                self.findings.append(Finding(
-                    title=f"Empty catch block in {f.name}",
-                    priority="P2",
-                    category="quality",
-                    description=f"Empty catch block at line {line_num}. Errors should be logged or handled.",
-                    file=str(f.relative_to(self.config.workspace_root)),
-                    line=line_num,
-                ))
-
-    def _scan_missing_docs(self):
-        """Find public declarations without documentation comments."""
-        public_decl = re.compile(
-            r"^\s*(public\s+)(func|var|let|class|struct|enum|protocol|init)\s+(\w+)"
+        pattern = re.compile(
+            r"(?://|#)\s*(TODO|FIXME|HACK|XXX)[:\s]*(.*)", re.IGNORECASE
         )
-        for f in self._swift_files():
-            lines = f.read_text().split("\n")
-            for i, line in enumerate(lines):
-                m = public_decl.match(line)
-                if not m:
-                    continue
-                # Check if preceded by a doc comment
-                has_doc = False
-                for j in range(max(0, i - 3), i):
-                    if "///" in lines[j] or "/**" in lines[j]:
-                        has_doc = True
-                        break
-                if not has_doc:
-                    name = m.group(3)
-                    kind = m.group(2)
-                    self.findings.append(Finding(
-                        title=f"Missing docs: {kind} {name}",
-                        priority="P3",
-                        category="docs",
-                        description=f"Public {kind} '{name}' in {f.name}:{i+1} has no documentation comment.",
-                        file=str(f.relative_to(self.config.workspace_root)),
-                        line=i + 1,
-                    ))
-
-    def _scan_missing_tests(self):
-        """Find packages without test directories or test files."""
-        if not self.config.packages_dir.exists():
-            return
-
-        for pkg in self.config.packages_dir.iterdir():
-            if not pkg.is_dir():
+        for f in self._source_files():
+            try:
+                for i, line in enumerate(f.read_text(errors="ignore").split("\n"), 1):
+                    m = pattern.search(line)
+                    if m:
+                        tag = m.group(1).upper()
+                        msg = m.group(2).strip()
+                        self.findings.append(Finding(
+                            title=f"{tag}: {msg[:60]}",
+                            priority="P2" if tag == "TODO" else "P1",
+                            category="quality",
+                            description=f"{tag} at {f.name}:{i}: {msg}",
+                            file=str(f.relative_to(self.config.workspace_root)),
+                            line=i,
+                        ))
+            except (PermissionError, OSError):
                 continue
-            test_dir = pkg / "Tests"
-            if not test_dir.exists():
-                self.findings.append(Finding(
-                    title=f"No tests for {pkg.name}",
-                    priority="P1",
-                    category="testing",
-                    description=f"Package {pkg.name} has no Tests/ directory. Add unit tests.",
-                    file=str(pkg.relative_to(self.config.workspace_root)),
-                ))
-            else:
-                test_files = list(test_dir.rglob("*.swift"))
-                if not test_files:
-                    self.findings.append(Finding(
-                        title=f"Empty test directory for {pkg.name}",
-                        priority="P1",
-                        category="testing",
-                        description=f"Package {pkg.name}/Tests/ exists but has no .swift test files.",
-                        file=str(test_dir.relative_to(self.config.workspace_root)),
-                    ))
 
     def _scan_backlog(self):
         """Parse BACKLOG.md for pending tasks."""

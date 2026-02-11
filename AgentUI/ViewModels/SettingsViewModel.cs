@@ -17,6 +17,8 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _safeDeleteEnabled = true;
     [ObservableProperty] private bool _sandboxEnabled = true;
     [ObservableProperty] private int _maxContextTokens = 100_000;
+    [ObservableProperty] private bool _claudeCliEnabled;
+    [ObservableProperty] private bool _gooseEnabled;
     [ObservableProperty] private bool _hasUnsavedChanges;
     [ObservableProperty] private string _statusMessage = string.Empty;
 
@@ -39,6 +41,8 @@ public partial class SettingsViewModel : ObservableObject
         SafeDeleteEnabled = config.SafeDeleteEnabled;
         SandboxEnabled = config.SandboxEnabled;
         MaxContextTokens = config.MaxContextTokens;
+        ClaudeCliEnabled = config.ClaudeCliEnabled;
+        GooseEnabled = config.GooseEnabled;
         HasUnsavedChanges = false;
     }
 
@@ -48,6 +52,8 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnSafeDeleteEnabledChanged(bool value) => HasUnsavedChanges = true;
     partial void OnSandboxEnabledChanged(bool value) => HasUnsavedChanges = true;
     partial void OnMaxContextTokensChanged(int value) => HasUnsavedChanges = true;
+    partial void OnClaudeCliEnabledChanged(bool value) => HasUnsavedChanges = true;
+    partial void OnGooseEnabledChanged(bool value) => HasUnsavedChanges = true;
 
     [RelayCommand]
     private async Task SaveAsync()
@@ -61,7 +67,9 @@ public partial class SettingsViewModel : ObservableObject
             MaxFileSizeBytes = 1_048_576,
             SafeDeleteEnabled = SafeDeleteEnabled,
             SandboxEnabled = SandboxEnabled,
-            MaxContextTokens = MaxContextTokens
+            MaxContextTokens = MaxContextTokens,
+            ClaudeCliEnabled = ClaudeCliEnabled,
+            GooseEnabled = GooseEnabled,
         };
 
         await _agentService.UpdateConfigAsync(config);

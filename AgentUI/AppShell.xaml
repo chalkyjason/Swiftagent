@@ -10,14 +10,11 @@
     <Shell.FlyoutHeader>
         <Grid Padding="20" HeightRequest="140" BackgroundColor="{StaticResource DarkBackground}">
             <VerticalStackLayout VerticalOptions="Center" Spacing="4">
-                <Label Text="&#x1F916;"
-                       FontSize="36"
-                       HorizontalOptions="Start" />
                 <Label Text="Swiftagent"
                        FontSize="24"
                        FontAttributes="Bold"
                        TextColor="{StaticResource CyanAccent}" />
-                <Label Text="Autonomous Agent Control Panel"
+                <Label Text="Multi-Agent Task Control Panel"
                        FontSize="12"
                        TextColor="{StaticResource MutedText}" />
             </VerticalStackLayout>
@@ -28,16 +25,16 @@
         <ShellContent ContentTemplate="{DataTemplate views:DashboardPage}" Route="dashboard" />
     </FlyoutItem>
 
-    <FlyoutItem Title="OpenClaw" Icon="{x:Null}">
-        <ShellContent ContentTemplate="{DataTemplate views:OpenClawPage}" Route="openclaw" />
+    <FlyoutItem Title="Tasks" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:BacklogPage}" Route="tasks" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Agents" Icon="{x:Null}">
+        <ShellContent ContentTemplate="{DataTemplate views:OpenClawPage}" Route="agents" />
     </FlyoutItem>
 
     <FlyoutItem Title="Skills" Icon="{x:Null}">
         <ShellContent ContentTemplate="{DataTemplate views:SkillsPage}" Route="skills" />
-    </FlyoutItem>
-
-    <FlyoutItem Title="Backlog" Icon="{x:Null}">
-        <ShellContent ContentTemplate="{DataTemplate views:BacklogPage}" Route="backlog" />
     </FlyoutItem>
 
     <FlyoutItem Title="Console" Icon="{x:Null}">

@@ -1,7 +1,7 @@
-"""OpenClaw Agent — autonomous improvement agent for Swiftagent.
+"""OpenClaw Agent — autonomous multi-agent task orchestrator.
 
-Connects to the Claude API, uses skills (tools) to read/write/build code,
-and iterates through tasks from BACKLOG.md or a scan of the repo.
+Connects to the Claude API, uses skills (tools) to manage tasks,
+and coordinates with Claude CLI and Goose for multi-agent execution.
 """
 
 import json
@@ -71,7 +71,7 @@ class CostTracker:
 
 
 class OpenClawAgent:
-    """Main agent that runs improvement tasks against the repository."""
+    """Main agent that runs tasks, manages the backlog, and coordinates agents."""
 
     def __init__(self, config: OpenClawConfig | None = None):
         self.config = config or OpenClawConfig()
@@ -90,15 +90,22 @@ class OpenClawAgent:
         logger.info(f"Received signal {signum}, shutting down gracefully...")
         self._shutdown = True
 
-    # ── Initialization ───────────────────────────────────────────
+    # -- Status reporting --
 
     def _write_status(self, current_task: str = "", phase: str = "idle"):
         """Write status.json for the MAUI UI to read."""
+        # Check agent availability
+        agents = {"openclaw": "running"}
+        if self.config.claude_cli_enabled:
+            agents["claude_cli"] = "enabled"
+        if self.config.goose_enabled:
+            agents["goose"] = "enabled"
+
         status = {
             "connection_state": "connected",
-            "agent_name": "Swiftagent-Claw",
+            "agent_name": "OpenClaw",
             "model": self.config.model,
-            "version": "1.0.0",
+            "version": "2.0.0",
             "phase": phase,
             "current_task": current_task,
             "iteration": self.iteration,
@@ -111,10 +118,10 @@ class OpenClawAgent:
             "skills": [s["name"] for s in get_skill_schemas()],
             "active_skills_count": len(get_skill_schemas()),
             "total_skills_count": len(get_skill_schemas()),
+            "agents": agents,
             "timestamp": datetime.now().isoformat(),
         }
-        status_path = self.config.workspace_root / "openclaw_status.json"
-        status_path.write_text(json.dumps(status, indent=2))
+        self.config.status_path.write_text(json.dumps(status, indent=2))
 
     def initialize(self):
         """Set up the agent: validate config, init API client."""
@@ -132,23 +139,20 @@ class OpenClawAgent:
         logger.info(f"Workspace: {self.config.workspace_root}")
         logger.info(f"Budget: ${self.config.daily_budget:.2f}/day")
         logger.info(f"Dry run: {self.config.dry_run}")
+        logger.info(f"Claude CLI: {'enabled' if self.config.claude_cli_enabled else 'disabled'}")
+        logger.info(f"Goose: {'enabled' if self.config.goose_enabled else 'disabled'}")
         logger.info("Initialization complete.")
 
-        # Write skills.json so the MAUI UI can discover available skills
-        skills_path = self.config.workspace_root / "openclaw_skills.json"
-        skills_path.write_text(json.dumps(get_skill_schemas(), indent=2))
-
+        # Write skills.json for the MAUI UI
+        self.config.skills_path.write_text(
+            json.dumps(get_skill_schemas(), indent=2)
+        )
         self._write_status(phase="initialized")
 
-    # ── Main loop ────────────────────────────────────────────────
+    # -- Main loop --
 
     def run(self, task: str | None = None, scan_only: bool = False):
-        """Run the agent loop.
-
-        Args:
-            task: If provided, run only this single task then stop.
-            scan_only: If True, scan for improvements but don't modify code.
-        """
+        """Run the agent loop."""
         self.initialize()
 
         if scan_only:
@@ -160,8 +164,8 @@ class OpenClawAgent:
             self._run_task(task)
             return
 
-        # Continuous improvement loop
-        logger.info("Starting continuous improvement loop...")
+        # Continuous task loop
+        logger.info("Starting continuous task loop...")
         while not self._shutdown and self.iteration < self.config.max_iterations:
             if self.cost.over_budget:
                 logger.warning(
@@ -192,17 +196,17 @@ class OpenClawAgent:
             f"Cost: ${self.cost.cost_today:.4f}"
         )
 
-    # ── Task execution ───────────────────────────────────────────
+    # -- Task execution --
 
     def _run_next_task(self):
         """Pick and execute the next task from BACKLOG.md."""
-        # Ask the agent to read the backlog and decide what to work on
         self.conversation = []
         self._run_task(
-            "Read BACKLOG.md using the backlog_read skill. Pick the highest "
-            "priority pending task that is NOT already in progress. Then "
-            "implement it fully: read relevant code, make changes, build, "
-            "test, and commit. Update BACKLOG.md when done."
+            "Read the task backlog using task_list. Pick the highest "
+            "priority pending task. Then implement it fully: read relevant "
+            "code, make changes, verify, and commit. Update the task status "
+            "when done. If other agents are available (check with agent_status), "
+            "consider delegating sub-tasks to them."
         )
 
     def _run_task(self, task: str):
@@ -210,7 +214,7 @@ class OpenClawAgent:
         self.conversation = [{"role": "user", "content": task}]
         tools = get_skill_schemas()
 
-        for turn in range(50):  # max turns per task
+        for turn in range(50):
             if self._shutdown or self.cost.over_budget:
                 break
 
@@ -223,13 +227,11 @@ class OpenClawAgent:
                 messages=self.conversation,
             )
 
-            # Track cost
             self.cost.record_usage(
                 response.usage.input_tokens,
                 response.usage.output_tokens,
             )
 
-            # Process response content blocks
             assistant_content = []
             tool_results = []
             has_tool_use = False
@@ -252,43 +254,40 @@ class OpenClawAgent:
                         "content": result,
                     })
 
-            # Add assistant message
             self.conversation.append({
                 "role": "assistant",
                 "content": assistant_content,
             })
 
-            # If there were tool uses, add results and continue
             if has_tool_use:
                 self.conversation.append({
                     "role": "user",
                     "content": tool_results,
                 })
+                self._write_status(phase="running", current_task=task[:100])
                 continue
 
-            # No tool use = agent is done with this task
             if response.stop_reason == "end_turn":
                 logger.info("Task completed.")
                 break
 
         logger.info(f"Task finished after {turn + 1} turns")
 
-    # ── Scan mode ────────────────────────────────────────────────
+    # -- Scan mode --
 
     def _run_scan(self):
         """Scan the repo for improvements without modifying anything."""
         logger.info("Running improvement scan (read-only)...")
 
-        # First, gather repo structure
         structure = self.executor.execute("file_list", {
-            "path": ".", "pattern": "**/*.swift"
+            "path": ".", "pattern": "**/*"
         })
 
         scan_message = (
-            f"Here is the repository file structure:\n\n"
+            f"Here is the workspace file structure:\n\n"
             f"```\n{structure}\n```\n\n"
             f"{SCAN_PROMPT}\n\n"
-            "Use the file_read and search_code skills to inspect the code, "
+            "Use file_read and search_code to inspect the code, "
             "then output your findings."
         )
 
@@ -324,9 +323,9 @@ class OpenClawAgent:
                 elif block.type == "tool_use":
                     has_tool_use = True
                     assistant_content.append(block)
-                    # Only allow read-only skills in scan mode
                     if block.name in ("file_read", "file_list", "search_code",
-                                      "backlog_read", "git_status", "git_diff"):
+                                      "task_list", "git_status", "git_diff",
+                                      "agent_status"):
                         result = self.executor.execute(block.name, block.input)
                     else:
                         result = f"BLOCKED: Skill '{block.name}' not allowed in scan mode"
@@ -353,11 +352,9 @@ def _setup_logging(config: OpenClawConfig):
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     level = getattr(logging, config.log_level.upper(), logging.INFO)
 
-    # File handler
     file_handler = logging.FileHandler(config.log_path, mode="a")
     file_handler.setFormatter(logging.Formatter(log_format))
 
-    # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter(
         "%(asctime)s %(levelname)-5s %(message)s", datefmt="%H:%M:%S"

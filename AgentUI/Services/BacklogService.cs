@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using AgentUI.Models;
 
@@ -5,11 +6,12 @@ namespace AgentUI.Services;
 
 /// <summary>
 /// Reads and manages the real BACKLOG.md file from the workspace.
-/// No hardcoded data — parses the actual markdown file on disk.
+/// Supports creating, updating, and deleting tasks with write-through to disk.
 /// </summary>
 public class BacklogService : IBacklogService
 {
     private readonly string _backlogPath;
+    private readonly string _tasksDir;
     private List<BacklogTask> _tasks = new();
     private DateTime _lastRead = DateTime.MinValue;
 
@@ -18,7 +20,9 @@ public class BacklogService : IBacklogService
         var workspaceRoot = Environment.GetEnvironmentVariable("AGENT_WORKSPACE_ROOT")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Swiftagent");
         _backlogPath = Path.Combine(workspaceRoot, "BACKLOG.md");
+        _tasksDir = Path.Combine(workspaceRoot, ".openclaw_tasks");
 
+        Directory.CreateDirectory(_tasksDir);
         ParseBacklogFile();
     }
 
@@ -29,7 +33,7 @@ public class BacklogService : IBacklogService
         try
         {
             var lastWrite = File.GetLastWriteTimeUtc(_backlogPath);
-            if (lastWrite <= _lastRead) return; // No changes
+            if (lastWrite <= _lastRead) return;
 
             _lastRead = lastWrite;
             var lines = File.ReadAllLines(_backlogPath);
@@ -40,7 +44,6 @@ public class BacklogService : IBacklogService
             {
                 var line = rawLine.Trim();
 
-                // Track section headers
                 if (line.StartsWith("##"))
                 {
                     var header = line.TrimStart('#').Trim().ToLowerInvariant();
@@ -48,19 +51,14 @@ public class BacklogService : IBacklogService
                     else if (header.Contains("completed") || header.Contains("done")) currentSection = "completed";
                     else if (header.Contains("pending") || header.Contains("backlog")) currentSection = "pending";
                     else if (header.Contains("blocked") || header.Contains("failed")) currentSection = "blocked";
-                    else if (header.Contains("enhancement")) currentSection = "pending";
-                    else if (header.Contains("bug")) currentSection = "pending";
-                    else if (header.Contains("documentation") || header.Contains("doc")) currentSection = "pending";
                     continue;
                 }
 
-                // Parse task lines: "- [ ] [P1] Task description" or "- [x] Task"
                 if (!line.StartsWith("- [")) continue;
 
                 bool isCompleted = line.StartsWith("- [x]", StringComparison.OrdinalIgnoreCase);
                 var taskText = Regex.Replace(line, @"^-\s*\[[ xX]\]\s*", "").Trim();
 
-                // Extract priority
                 var priority = TaskPriority.P2;
                 var priorityMatch = Regex.Match(taskText, @"\[P([123])\]");
                 if (priorityMatch.Success)
@@ -74,15 +72,23 @@ public class BacklogService : IBacklogService
                     taskText = taskText.Replace(priorityMatch.Value, "").Trim();
                 }
 
-                // Determine status from checkbox and section context
-                var status = isCompleted ? TaskStatus.Completed
-                    : currentSection == "in_progress" ? TaskStatus.InProgress
-                    : currentSection == "completed" ? TaskStatus.Completed
-                    : currentSection == "blocked" ? TaskStatus.Blocked
-                    : TaskStatus.Pending;
+                // Extract agent tag
+                var agentMatch = Regex.Match(taskText, @"@agent:(\w+)");
+                var assignedAgent = agentMatch.Success ? agentMatch.Groups[1].Value : "";
+                if (agentMatch.Success)
+                    taskText = taskText.Replace(agentMatch.Value, "").Trim();
 
-                // Extract category from task text heuristics
-                var category = InferCategory(taskText);
+                // Extract category tag
+                var catMatch = Regex.Match(taskText, @"\[([^\]]+)\]");
+                var category = catMatch.Success ? catMatch.Groups[1].Value : InferCategory(taskText);
+                if (catMatch.Success)
+                    taskText = taskText.Replace(catMatch.Value, "").Trim();
+
+                var status = isCompleted ? BacklogTaskStatus.Completed
+                    : currentSection == "in_progress" ? BacklogTaskStatus.InProgress
+                    : currentSection == "completed" ? BacklogTaskStatus.Completed
+                    : currentSection == "blocked" ? BacklogTaskStatus.Blocked
+                    : BacklogTaskStatus.Pending;
 
                 tasks.Add(new BacklogTask
                 {
@@ -90,6 +96,7 @@ public class BacklogService : IBacklogService
                     Priority = priority,
                     Status = status,
                     Category = category,
+                    AssignedAgent = assignedAgent,
                     CompletedAt = isCompleted ? DateTime.Now.AddDays(-1) : null,
                 });
             }
@@ -98,43 +105,26 @@ public class BacklogService : IBacklogService
         }
         catch
         {
-            // In Progress
-            new() { Title = "CloudKit sync for save games", Priority = TaskPriority.P1, Status = BacklogTaskStatus.InProgress, Category = "Cloud" },
-            new() { Title = "Leaderboard UI with SwiftUI", Priority = TaskPriority.P1, Status = BacklogTaskStatus.InProgress, Category = "UI" },
+            // File may be locked or malformed — keep existing tasks
+        }
+    }
 
-            // Pending High Priority
-            new() { Title = "iCloud save game persistence", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Pending, Category = "Cloud" },
-            new() { Title = "Game Center leaderboard submission", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Pending, Category = "GameKit" },
-            new() { Title = "Achievement system integration", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Pending, Category = "GameKit" },
-
-            // Pending Medium Priority
-            new() { Title = "Additional mini-games (Puzzle, Runner)", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "Gameplay" },
-            new() { Title = "Particle effects system", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "Graphics" },
-            new() { Title = "Spatial audio support", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "Audio" },
-            new() { Title = "Advanced haptic patterns", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "Haptics" },
-            new() { Title = "Menu transition animations", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Pending, Category = "UI" },
-
-            // Pending Low Priority
-            new() { Title = "watchOS companion app", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Platform" },
-            new() { Title = "tvOS remote input support", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Platform" },
-            new() { Title = "Accessibility VoiceOver support", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Accessibility" },
-            new() { Title = "Analytics event tracking", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Analytics" },
-            new() { Title = "Screen recording prevention", Priority = TaskPriority.P3, Status = BacklogTaskStatus.Pending, Category = "Security" },
-
-            // Completed
-            new() { Title = "Game Center authentication", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "GameKit", CompletedAt = DateTime.Now.AddDays(-5) },
-            new() { Title = "Core navigation system", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "UI", CompletedAt = DateTime.Now.AddDays(-4) },
-            new() { Title = "Game loop with fixed timestep", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "Engine", CompletedAt = DateTime.Now.AddDays(-4) },
-            new() { Title = "Base game scene (SpriteKit)", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "Engine", CompletedAt = DateTime.Now.AddDays(-3) },
-            new() { Title = "Sound manager with AVFoundation", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "Audio", CompletedAt = DateTime.Now.AddDays(-2) },
-            new() { Title = "Haptic feedback engine", Priority = TaskPriority.P2, Status = BacklogTaskStatus.Completed, Category = "Haptics", CompletedAt = DateTime.Now.AddDays(-2) },
-            new() { Title = "SpaceShooter sample app", Priority = TaskPriority.P1, Status = BacklogTaskStatus.Completed, Category = "App", CompletedAt = DateTime.Now.AddDays(-1) },
-        };
+    private static string InferCategory(string text)
+    {
+        var lower = text.ToLowerInvariant();
+        if (lower.Contains("api") || lower.Contains("backend") || lower.Contains("server")) return "Backend";
+        if (lower.Contains("ui") || lower.Contains("frontend") || lower.Contains("page")) return "Frontend";
+        if (lower.Contains("test")) return "Testing";
+        if (lower.Contains("doc")) return "Docs";
+        if (lower.Contains("deploy") || lower.Contains("ci") || lower.Contains("docker")) return "DevOps";
+        if (lower.Contains("bug") || lower.Contains("fix")) return "Bug Fix";
+        if (lower.Contains("refactor")) return "Refactor";
+        return "General";
     }
 
     public Task<List<BacklogTask>> GetTasksAsync()
     {
-        ParseBacklogFile(); // Re-read if file changed
+        ParseBacklogFile();
         return Task.FromResult(_tasks.ToList());
     }
 
@@ -144,19 +134,110 @@ public class BacklogService : IBacklogService
     public Task AddTaskAsync(BacklogTask task)
     {
         _tasks.Add(task);
+        WriteTaskToBacklog(task);
+        WriteTaskJson(task);
         return Task.CompletedTask;
     }
 
     public Task UpdateTaskAsync(BacklogTask task)
     {
         var idx = _tasks.FindIndex(t => t.Id == task.Id);
-        if (idx >= 0) _tasks[idx] = task;
+        if (idx >= 0)
+        {
+            _tasks[idx] = task;
+            RewriteBacklog();
+        }
         return Task.CompletedTask;
     }
 
     public Task DeleteTaskAsync(string taskId)
     {
         _tasks.RemoveAll(t => t.Id == taskId);
+        RewriteBacklog();
         return Task.CompletedTask;
+    }
+
+    private void WriteTaskToBacklog(BacklogTask task)
+    {
+        try
+        {
+            var content = File.Exists(_backlogPath)
+                ? File.ReadAllText(_backlogPath)
+                : "# Task Backlog\n\n## Pending\n\n## In Progress\n\n## Completed\n";
+
+            var agentTag = !string.IsNullOrEmpty(task.AssignedAgent) ? $" @agent:{task.AssignedAgent}" : "";
+            var catTag = !string.IsNullOrEmpty(task.Category) ? $" [{task.Category}]" : "";
+            var taskLine = $"- [ ] [{task.Priority}]{catTag} {task.Title}{agentTag}";
+
+            if (content.Contains("## Pending"))
+                content = content.Replace("## Pending", $"## Pending\n\n{taskLine}");
+            else
+                content += $"\n## Pending\n\n{taskLine}\n";
+
+            File.WriteAllText(_backlogPath, content);
+            _lastRead = DateTime.UtcNow;
+        }
+        catch
+        {
+            // File may be locked
+        }
+    }
+
+    private void WriteTaskJson(BacklogTask task)
+    {
+        try
+        {
+            var taskFile = Path.Combine(_tasksDir, $"{task.Id}.json");
+            var json = JsonSerializer.Serialize(new
+            {
+                id = task.Id,
+                title = task.Title,
+                description = task.Description,
+                priority = task.Priority.ToString(),
+                category = task.Category,
+                agent = task.AssignedAgent,
+                status = task.Status.ToString().ToLowerInvariant(),
+                created_at = task.CreatedAt.ToString("O"),
+            }, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(taskFile, json);
+        }
+        catch
+        {
+            // Non-critical
+        }
+    }
+
+    private void RewriteBacklog()
+    {
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("# Task Backlog\n");
+
+            void WriteSection(string header, BacklogTaskStatus status)
+            {
+                sb.AppendLine($"## {header}\n");
+                foreach (var t in _tasks.Where(t => t.Status == status).OrderBy(t => t.Priority))
+                {
+                    var check = t.Status == BacklogTaskStatus.Completed ? "x" : " ";
+                    var agentTag = !string.IsNullOrEmpty(t.AssignedAgent) ? $" @agent:{t.AssignedAgent}" : "";
+                    var catTag = !string.IsNullOrEmpty(t.Category) ? $" [{t.Category}]" : "";
+                    sb.AppendLine($"- [{check}] [{t.Priority}]{catTag} {t.Title}{agentTag}");
+                }
+                sb.AppendLine();
+            }
+
+            WriteSection("In Progress", BacklogTaskStatus.InProgress);
+            WriteSection("Pending", BacklogTaskStatus.Pending);
+            WriteSection("Blocked", BacklogTaskStatus.Blocked);
+            WriteSection("Completed", BacklogTaskStatus.Completed);
+
+            File.WriteAllText(_backlogPath, sb.ToString());
+            _lastRead = DateTime.UtcNow;
+        }
+        catch
+        {
+            // File may be locked
+        }
     }
 }

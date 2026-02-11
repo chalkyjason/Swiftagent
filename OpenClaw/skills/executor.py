@@ -1,13 +1,14 @@
 """Skill executor — runs tool calls returned by the Claude API.
 
-Each skill function receives validated input and returns a string result.
-All file/command operations pass through the SafetyGuard.
+General-purpose executor with multi-agent delegation and task management.
 """
 
-import fnmatch
+import json
 import logging
 import re
+import shutil
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 from ..config import OpenClawConfig
@@ -28,14 +29,15 @@ class SkillExecutor:
             "file_write": self._file_write,
             "file_patch": self._file_patch,
             "file_list": self._file_list,
-            "swift_build": self._swift_build,
-            "swift_test": self._swift_test,
             "git_status": self._git_status,
             "git_diff": self._git_diff,
             "git_commit": self._git_commit,
-            "backlog_read": self._backlog_read,
-            "backlog_update_task": self._backlog_update_task,
+            "task_create": self._task_create,
+            "task_list": self._task_list,
+            "task_update": self._task_update,
             "search_code": self._search_code,
+            "agent_delegate": self._agent_delegate,
+            "agent_status": self._agent_status,
         }
 
     def execute(self, skill_name: str, inputs: dict) -> str:
@@ -43,7 +45,6 @@ class SkillExecutor:
         handler = self._dispatch.get(skill_name)
         if not handler:
             return f"ERROR: Unknown skill '{skill_name}'"
-
         try:
             result = handler(inputs)
             logger.info(f"Skill {skill_name} executed successfully")
@@ -52,7 +53,7 @@ class SkillExecutor:
             logger.error(f"Skill {skill_name} failed: {e}")
             return f"ERROR: {e}"
 
-    # ── Shell ────────────────────────────────────────────────────
+    # -- Shell --
 
     def _shell_exec(self, inputs: dict) -> str:
         command = inputs["command"]
@@ -64,7 +65,7 @@ class SkillExecutor:
         if "working_dir" in inputs and inputs["working_dir"]:
             working_dir = self.config.workspace_root / inputs["working_dir"]
             if not self.safety.validate_path(working_dir):
-                return f"BLOCKED: Working directory outside sandbox"
+                return "BLOCKED: Working directory outside sandbox"
 
         if self.config.dry_run:
             return f"[DRY RUN] Would execute: {command}"
@@ -80,7 +81,7 @@ class SkillExecutor:
             output += f"\nExit code: {result.returncode}"
         return output.strip() or "(no output)"
 
-    # ── File operations ──────────────────────────────────────────
+    # -- File operations --
 
     def _file_read(self, inputs: dict) -> str:
         path = self.config.workspace_root / inputs["path"]
@@ -96,14 +97,11 @@ class SkillExecutor:
     def _file_write(self, inputs: dict) -> str:
         path = self.config.workspace_root / inputs["path"]
         content = inputs["content"]
-
         allowed, reason = self.safety.validate_file_write(path, content)
         if not allowed:
             return f"BLOCKED: {reason}"
-
         if self.config.dry_run:
             return f"[DRY RUN] Would write {len(content)} chars to {inputs['path']}"
-
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         self.safety.record_file_created()
@@ -113,24 +111,19 @@ class SkillExecutor:
     def _file_patch(self, inputs: dict) -> str:
         path = self.config.workspace_root / inputs["path"]
         if not self.safety.validate_path(path):
-            return f"BLOCKED: Path outside sandbox"
+            return "BLOCKED: Path outside sandbox"
         if not path.exists():
             return f"ERROR: File not found: {inputs['path']}"
-
         content = path.read_text(encoding="utf-8")
         old_string = inputs["old_string"]
         new_string = inputs["new_string"]
-
         if old_string not in content:
             return f"ERROR: old_string not found in {inputs['path']}"
-
         count = content.count(old_string)
         if count > 1:
             return f"ERROR: old_string found {count} times — must be unique"
-
         if self.config.dry_run:
             return f"[DRY RUN] Would patch {inputs['path']}"
-
         new_content = content.replace(old_string, new_string, 1)
         path.write_text(new_content, encoding="utf-8")
         logger.info(f"Patched {inputs['path']}")
@@ -139,53 +132,16 @@ class SkillExecutor:
     def _file_list(self, inputs: dict) -> str:
         base = self.config.workspace_root / inputs.get("path", ".")
         if not self.safety.validate_path(base):
-            return f"BLOCKED: Path outside sandbox"
+            return "BLOCKED: Path outside sandbox"
         if not base.exists():
             return f"ERROR: Directory not found: {inputs.get('path', '.')}"
-
         pattern = inputs.get("pattern", "*")
         matches = sorted(str(p.relative_to(self.config.workspace_root))
                          for p in base.rglob(pattern)
                          if not any(part.startswith(".") for part in p.parts))
         return "\n".join(matches[:200]) or "(no matches)"
 
-    # ── Swift build/test ─────────────────────────────────────────
-
-    def _swift_build(self, inputs: dict) -> str:
-        pkg_path = self.config.workspace_root / inputs["package_path"]
-        if not self.safety.validate_path(pkg_path):
-            return "BLOCKED: Package path outside sandbox"
-
-        cmd = f"swift build --package-path {pkg_path}"
-        if self.config.dry_run:
-            return f"[DRY RUN] Would run: {cmd}"
-
-        result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True,
-            cwd=str(self.config.workspace_root), timeout=300
-        )
-        output = result.stdout + "\n" + result.stderr
-        status = "BUILD SUCCEEDED" if result.returncode == 0 else "BUILD FAILED"
-        return f"{status}\n\n{output.strip()}"
-
-    def _swift_test(self, inputs: dict) -> str:
-        pkg_path = self.config.workspace_root / inputs["package_path"]
-        if not self.safety.validate_path(pkg_path):
-            return "BLOCKED: Package path outside sandbox"
-
-        cmd = f"swift test --package-path {pkg_path}"
-        if self.config.dry_run:
-            return f"[DRY RUN] Would run: {cmd}"
-
-        result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True,
-            cwd=str(self.config.workspace_root), timeout=300
-        )
-        output = result.stdout + "\n" + result.stderr
-        status = "TESTS PASSED" if result.returncode == 0 else "TESTS FAILED"
-        return f"{status}\n\n{output.strip()}"
-
-    # ── Git ──────────────────────────────────────────────────────
+    # -- Git --
 
     def _git_status(self, _inputs: dict) -> str:
         result = subprocess.run(
@@ -201,7 +157,6 @@ class SkillExecutor:
             if not self.safety.validate_path(path):
                 return "BLOCKED: Path outside sandbox"
             cmd += f" -- {inputs['path']}"
-
         result = subprocess.run(
             cmd, shell=True, capture_output=True, text=True,
             cwd=str(self.config.workspace_root)
@@ -214,24 +169,17 @@ class SkillExecutor:
     def _git_commit(self, inputs: dict) -> str:
         files = inputs["files"]
         message = inputs["message"]
-
-        # Validate all paths
         for f in files:
             full = self.config.workspace_root / f
             if not self.safety.validate_path(full):
                 return f"BLOCKED: File outside sandbox: {f}"
-
         if self.config.dry_run:
             return f"[DRY RUN] Would commit {len(files)} files: {message}"
-
-        # Stage files
         for f in files:
             subprocess.run(
                 f"git add {f}", shell=True,
                 cwd=str(self.config.workspace_root)
             )
-
-        # Commit
         result = subprocess.run(
             ["git", "commit", "-m", message],
             capture_output=True, text=True,
@@ -241,47 +189,134 @@ class SkillExecutor:
             return f"COMMIT FAILED:\n{result.stderr}"
         return f"COMMITTED: {message}\n{result.stdout.strip()}"
 
-    # ── Backlog ──────────────────────────────────────────────────
+    # -- Task management --
 
-    def _backlog_read(self, _inputs: dict) -> str:
+    def _task_create(self, inputs: dict) -> str:
+        title = inputs["title"]
+        priority = inputs.get("priority", "P2")
+        description = inputs.get("description", "")
+        category = inputs.get("category", "General")
+        agent = inputs.get("agent", "any")
+
+        backlog = self.config.backlog_path
+        if not backlog.exists():
+            backlog.write_text("# Task Backlog\n\n## Pending\n\n## In Progress\n\n## Completed\n", encoding="utf-8")
+
+        content = backlog.read_text(encoding="utf-8")
+
+        # Build the task line
+        agent_tag = f" @agent:{agent}" if agent != "any" else ""
+        cat_tag = f" [{category}]" if category else ""
+        task_line = f"- [ ] [{priority}]{cat_tag} {title}{agent_tag}"
+        if description:
+            task_line += f"\n  > {description}"
+
+        # Insert into Pending section
+        if "## Pending" in content:
+            content = content.replace("## Pending", f"## Pending\n\n{task_line}", 1)
+        else:
+            content += f"\n## Pending\n\n{task_line}\n"
+
+        if self.config.dry_run:
+            return f"[DRY RUN] Would create task: {title}"
+
+        backlog.write_text(content, encoding="utf-8")
+        logger.info(f"Created task: {title} [{priority}]")
+
+        # Write task detail to tasks dir
+        task_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        task_file = self.config.tasks_dir / f"{task_id}.json"
+        task_data = {
+            "id": task_id,
+            "title": title,
+            "description": description,
+            "priority": priority,
+            "category": category,
+            "agent": agent,
+            "status": "pending",
+            "created_at": datetime.now().isoformat(),
+        }
+        task_file.write_text(json.dumps(task_data, indent=2), encoding="utf-8")
+
+        return f"OK: Created task '{title}' [{priority}] assigned to {agent}"
+
+    def _task_list(self, inputs: dict) -> str:
+        status_filter = inputs.get("status_filter", "all")
+
         if not self.config.backlog_path.exists():
             return "ERROR: BACKLOG.md not found"
-        return self.config.backlog_path.read_text(encoding="utf-8")
 
-    def _backlog_update_task(self, inputs: dict) -> str:
+        content = self.config.backlog_path.read_text(encoding="utf-8")
+        lines = content.split("\n")
+        tasks = []
+        current_section = ""
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("##"):
+                header = stripped.lstrip("#").strip().lower()
+                if "in progress" in header:
+                    current_section = "in_progress"
+                elif "completed" in header or "done" in header:
+                    current_section = "completed"
+                elif "blocked" in header:
+                    current_section = "blocked"
+                elif "pending" in header:
+                    current_section = "pending"
+                continue
+
+            if not stripped.startswith("- ["):
+                continue
+
+            is_done = stripped.startswith("- [x]")
+            status = "completed" if is_done else current_section or "pending"
+
+            if status_filter != "all" and status != status_filter:
+                continue
+
+            task_text = re.sub(r"^-\s*\[[ xX]\]\s*", "", stripped).strip()
+            tasks.append(f"[{status.upper()}] {task_text}")
+
+        return "\n".join(tasks) if tasks else "(no tasks found)"
+
+    def _task_update(self, inputs: dict) -> str:
         if not self.config.backlog_path.exists():
             return "ERROR: BACKLOG.md not found"
 
-        task_desc = inputs["task_description"]
+        task_title = inputs["task_title"]
         new_status = inputs["new_status"]
+        notes = inputs.get("notes", "")
 
         content = self.config.backlog_path.read_text(encoding="utf-8")
         lines = content.split("\n")
         updated = False
 
         for i, line in enumerate(lines):
-            if task_desc.lower() in line.lower():
+            if task_title.lower() in line.lower():
                 if new_status == "completed":
                     lines[i] = line.replace("- [ ]", "- [x]")
                 elif new_status == "pending":
                     lines[i] = line.replace("- [x]", "- [ ]")
+                if notes:
+                    lines.insert(i + 1, f"  > Note: {notes}")
                 updated = True
                 break
 
         if not updated:
-            return f"ERROR: Task not found: {task_desc}"
+            return f"ERROR: Task not found: {task_title}"
 
         if self.config.dry_run:
             return f"[DRY RUN] Would update task to {new_status}"
 
         self.config.backlog_path.write_text("\n".join(lines), encoding="utf-8")
+        logger.info(f"Updated task '{task_title}' -> {new_status}")
         return f"OK: Updated task to {new_status}"
 
-    # ── Code search ──────────────────────────────────────────────
+    # -- Code search --
 
     def _search_code(self, inputs: dict) -> str:
         pattern = inputs["pattern"]
-        file_pattern = inputs.get("file_pattern", "*.swift")
+        file_pattern = inputs.get("file_pattern", "*")
         search_path = self.config.workspace_root / inputs.get("path", ".")
 
         if not self.safety.validate_path(search_path):
@@ -310,3 +345,117 @@ class SkillExecutor:
             results.append("... (truncated to 100 results)")
 
         return "\n".join(results) or "(no matches)"
+
+    # -- Multi-agent delegation --
+
+    def _agent_delegate(self, inputs: dict) -> str:
+        agent = inputs["agent"]
+        task = inputs["task"]
+        working_dir = self.config.workspace_root / inputs.get("working_dir", ".")
+
+        if not self.safety.validate_path(working_dir):
+            return "BLOCKED: Working directory outside sandbox"
+
+        if agent == "claude":
+            if not self.config.claude_cli_enabled:
+                return "ERROR: Claude CLI not enabled. Set CLAUDE_CLI_ENABLED=true"
+            return self._run_claude_cli(task, working_dir)
+        elif agent == "goose":
+            if not self.config.goose_enabled:
+                return "ERROR: Goose not enabled. Set GOOSE_ENABLED=true"
+            return self._run_goose(task, working_dir)
+        else:
+            return f"ERROR: Unknown agent: {agent}"
+
+    def _run_claude_cli(self, task: str, working_dir: Path) -> str:
+        """Run a task via Claude Code CLI."""
+        cmd = f'{self.config.claude_cli_path} --print "{task}"'
+        logger.info(f"Delegating to Claude CLI: {task[:80]}...")
+
+        if self.config.dry_run:
+            return f"[DRY RUN] Would delegate to Claude CLI: {task}"
+
+        try:
+            result = subprocess.run(
+                cmd, shell=True, capture_output=True, text=True,
+                cwd=str(working_dir), timeout=300
+            )
+            output = result.stdout.strip()
+            if result.stderr:
+                output += f"\nSTDERR: {result.stderr.strip()}"
+            if result.returncode != 0:
+                output += f"\nExit code: {result.returncode}"
+            logger.info(f"Claude CLI completed: {output[:200]}...")
+            return output or "(no output from Claude CLI)"
+        except subprocess.TimeoutExpired:
+            return "ERROR: Claude CLI timed out after 300s"
+        except FileNotFoundError:
+            return f"ERROR: Claude CLI not found at '{self.config.claude_cli_path}'. Install with: npm install -g @anthropic-ai/claude-code"
+
+    def _run_goose(self, task: str, working_dir: Path) -> str:
+        """Run a task via Goose agent."""
+        cmd = f'{self.config.goose_path} run "{task}"'
+        logger.info(f"Delegating to Goose: {task[:80]}...")
+
+        if self.config.dry_run:
+            return f"[DRY RUN] Would delegate to Goose: {task}"
+
+        try:
+            result = subprocess.run(
+                cmd, shell=True, capture_output=True, text=True,
+                cwd=str(working_dir), timeout=300
+            )
+            output = result.stdout.strip()
+            if result.stderr:
+                output += f"\nSTDERR: {result.stderr.strip()}"
+            if result.returncode != 0:
+                output += f"\nExit code: {result.returncode}"
+            logger.info(f"Goose completed: {output[:200]}...")
+            return output or "(no output from Goose)"
+        except subprocess.TimeoutExpired:
+            return "ERROR: Goose timed out after 300s"
+        except FileNotFoundError:
+            return f"ERROR: Goose not found at '{self.config.goose_path}'. Install from: https://github.com/block/goose"
+
+    def _agent_status(self, _inputs: dict) -> str:
+        """Check status of all configured agents."""
+        statuses = []
+
+        # OpenClaw (always available if we're running)
+        statuses.append("OpenClaw: RUNNING (this agent)")
+
+        # Claude CLI
+        if self.config.claude_cli_enabled:
+            try:
+                result = subprocess.run(
+                    f"{self.config.claude_cli_path} --version",
+                    shell=True, capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    version = result.stdout.strip()
+                    statuses.append(f"Claude CLI: AVAILABLE ({version})")
+                else:
+                    statuses.append("Claude CLI: NOT FOUND (install: npm install -g @anthropic-ai/claude-code)")
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                statuses.append("Claude CLI: NOT FOUND")
+        else:
+            statuses.append("Claude CLI: DISABLED (set CLAUDE_CLI_ENABLED=true)")
+
+        # Goose
+        if self.config.goose_enabled:
+            try:
+                result = subprocess.run(
+                    f"{self.config.goose_path} version",
+                    shell=True, capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    version = result.stdout.strip()
+                    statuses.append(f"Goose: AVAILABLE ({version})")
+                else:
+                    statuses.append("Goose: NOT FOUND (install from https://github.com/block/goose)")
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                statuses.append("Goose: NOT FOUND")
+        else:
+            statuses.append("Goose: DISABLED (set GOOSE_ENABLED=true)")
+
+        return "\n".join(statuses)

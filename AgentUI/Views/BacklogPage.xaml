@@ -5,7 +5,7 @@
              xmlns:models="clr-namespace:AgentUI.Models"
              xmlns:conv="clr-namespace:AgentUI.Converters"
              x:Class="AgentUI.Views.BacklogPage"
-             Title="Backlog"
+             Title="Tasks"
              x:DataType="vm:BacklogViewModel">
 
     <ContentPage.Resources>
@@ -13,7 +13,7 @@
         <conv:StatusToColorConverter x:Key="StatusColor" />
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,*" Padding="16" RowSpacing="12">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Padding="16" RowSpacing="12">
 
         <!-- Stats Row -->
         <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
@@ -51,8 +51,55 @@
             </Frame>
         </Grid>
 
+        <!-- Create Task Button + Status -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Label Text="{Binding StatusMessage}" FontSize="13"
+                   TextColor="{StaticResource GreenAccent}" VerticalTextAlignment="Center" />
+            <Button Grid.Column="1" Text="+ New Task" Command="{Binding ToggleFormCommand}"
+                    Style="{StaticResource PrimaryButton}" HeightRequest="40" FontSize="13" Padding="16,0" />
+        </Grid>
+
+        <!-- Task Creation Form (collapsible) -->
+        <Frame Grid.Row="2" Style="{StaticResource CardFrame}" Padding="14"
+               IsVisible="{Binding IsFormVisible}">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="CREATE TASK" FontSize="12" FontAttributes="Bold"
+                       TextColor="{StaticResource CyanAccent}" />
+
+                <Entry Text="{Binding NewTaskTitle}" Placeholder="Task title..."
+                       FontSize="14" />
+
+                <Editor Text="{Binding NewTaskDescription}" Placeholder="Description (optional)..."
+                        FontSize="13" HeightRequest="60" AutoSize="TextChanges" />
+
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                    <VerticalStackLayout>
+                        <Label Text="Priority" FontSize="11" TextColor="{StaticResource MutedText}" />
+                        <Picker ItemsSource="{Binding Priorities}" SelectedItem="{Binding NewTaskPriority}" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1">
+                        <Label Text="Category" FontSize="11" TextColor="{StaticResource MutedText}" />
+                        <Picker ItemsSource="{Binding Categories}" SelectedItem="{Binding NewTaskCategory}" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="2">
+                        <Label Text="Agent" FontSize="11" TextColor="{StaticResource MutedText}" />
+                        <Picker ItemsSource="{Binding Agents}" SelectedItem="{Binding NewTaskAgent}" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <HorizontalStackLayout Spacing="8" HorizontalOptions="End">
+                    <Button Text="Cancel" Command="{Binding ToggleFormCommand}"
+                            Style="{StaticResource OutlineButton}" HeightRequest="36"
+                            FontSize="12" Padding="14,0" />
+                    <Button Text="Create" Command="{Binding CreateTaskCommand}"
+                            Style="{StaticResource PrimaryButton}" HeightRequest="36"
+                            FontSize="12" Padding="14,0" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+        </Frame>
+
         <!-- Filter Chips -->
-        <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+        <ScrollView Grid.Row="3" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
             <HorizontalStackLayout Spacing="8">
                 <Button Text="All" Command="{Binding FilterCommand}" CommandParameter="All"
                         Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
@@ -61,6 +108,8 @@
                 <Button Text="Pending" Command="{Binding FilterCommand}" CommandParameter="Pending"
                         Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
                 <Button Text="Completed" Command="{Binding FilterCommand}" CommandParameter="Completed"
+                        Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
+                <Button Text="Blocked" Command="{Binding FilterCommand}" CommandParameter="Blocked"
                         Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0" />
                 <Button Text="P1" Command="{Binding FilterCommand}" CommandParameter="P1"
                         Style="{StaticResource OutlineButton}" HeightRequest="36" FontSize="12" Padding="12,0"
@@ -75,7 +124,7 @@
         </ScrollView>
 
         <!-- Task List -->
-        <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredTasks}">
+        <CollectionView Grid.Row="4" ItemsSource="{Binding FilteredTasks}">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:BacklogTask">
                     <Frame Style="{StaticResource CardFrameAlt}" Margin="0,0,0,8" Padding="14">
@@ -94,6 +143,8 @@
                                            TextColor="{Binding Priority, Converter={StaticResource PriorityColor}}" />
                                     <Label Text="{Binding Category}" FontSize="11"
                                            TextColor="{StaticResource MutedText}" />
+                                    <Label Text="{Binding AssignedAgent, StringFormat='@{0}'}" FontSize="11"
+                                           TextColor="{StaticResource PurpleAccent}" />
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
 
@@ -113,6 +164,8 @@
                 <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="8">
                     <Label Text="No tasks match filter" FontSize="16"
                            TextColor="{StaticResource MutedText}" HorizontalTextAlignment="Center" />
+                    <Label Text="Tap + New Task to create one"
+                           FontSize="13" TextColor="{StaticResource MutedText}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
         </CollectionView>
