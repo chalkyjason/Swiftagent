@@ -1,2 +1,3 @@
 # OpenClaw agent dependencies
 anthropic>=0.39.0
+openai>=1.12.0

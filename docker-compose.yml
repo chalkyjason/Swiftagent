@@ -1,0 +1,42 @@
+# Swiftagent — Local LLM setup via Ollama
+#
+# Quick start:
+#   docker compose up -d
+#   docker compose exec ollama ollama pull qwen2.5:14b
+#
+# Then run OpenClaw with:
+#   python -m OpenClaw --local --local-model qwen2.5:14b
+#
+# GPU support:
+#   NVIDIA: Works out of the box with nvidia-container-toolkit
+#   AMD:   Uncomment the AMD section below and comment out the NVIDIA one
+#   CPU:   Remove the deploy section entirely (will be slow)
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: swiftagent-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+    # NVIDIA GPU (default) — requires nvidia-container-toolkit
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # AMD GPU — uncomment below, comment out NVIDIA section above
+    # devices:
+    #   - /dev/kfd
+    #   - /dev/dri
+
+    # CPU only — remove the entire 'deploy' section above
+
+volumes:
+  ollama_data:

@@ -156,19 +156,19 @@ class TestRunTask:
         config = _make_config(tmp_path)
         with patch("OpenClaw.agent.signal.signal"):
             agent = OpenClawAgent(config)
-        agent.client = MagicMock()
+        agent.provider = MagicMock()
         return agent
 
     def test_simple_text_response(self, tmp_path):
         agent = self._setup_agent(tmp_path)
-        agent.client.messages.create.return_value = _make_response(
+        agent.provider.create_message.return_value = _make_response(
             [_make_text_block("Done!")],
             stop_reason="end_turn",
         )
 
         agent._run_task("say hello")
 
-        assert agent.client.messages.create.call_count == 1
+        assert agent.provider.create_message.call_count == 1
         assert len(agent.conversation) == 2  # user + assistant
 
     def test_tool_use_then_text(self, tmp_path):
@@ -184,11 +184,11 @@ class TestRunTask:
             [_make_text_block("All done.")],
             stop_reason="end_turn",
         )
-        agent.client.messages.create.side_effect = [tool_response, text_response]
+        agent.provider.create_message.side_effect = [tool_response, text_response]
 
         agent._run_task("check git status")
 
-        assert agent.client.messages.create.call_count == 2
+        assert agent.provider.create_message.call_count == 2
         # conversation: user, assistant(tool), user(tool_result), assistant(text)
         assert len(agent.conversation) == 4
 
@@ -197,10 +197,10 @@ class TestRunTask:
         config.daily_budget = 0.001  # very small budget
         with patch("OpenClaw.agent.signal.signal"):
             agent = OpenClawAgent(config)
-        agent.client = MagicMock()
+        agent.provider = MagicMock()
 
         # Response that costs tokens
-        agent.client.messages.create.return_value = _make_response(
+        agent.provider.create_message.return_value = _make_response(
             [_make_tool_block("git_status", {})],
             stop_reason="tool_use",
             input_tokens=1_000_000,  # $3 — way over $0.001
@@ -210,13 +210,13 @@ class TestRunTask:
         agent._run_task("do something expensive")
 
         # Should stop after first turn due to budget
-        assert agent.client.messages.create.call_count == 1
+        assert agent.provider.create_message.call_count == 1
         assert agent.cost.over_budget is True
 
     def test_shutdown_stops_loop(self, tmp_path):
         agent = self._setup_agent(tmp_path)
         agent._shutdown = True
-        agent.client.messages.create.return_value = _make_response(
+        agent.provider.create_message.return_value = _make_response(
             [_make_tool_block("git_status", {})],
             stop_reason="tool_use",
         )
@@ -224,7 +224,7 @@ class TestRunTask:
         agent._run_task("anything")
 
         # Should not even call the API since shutdown is set before first iteration
-        assert agent.client.messages.create.call_count == 0
+        assert agent.provider.create_message.call_count == 0
 
 
 # ---------------------------------------------------------------------------

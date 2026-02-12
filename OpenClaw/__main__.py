@@ -24,7 +24,7 @@ def main():
     )
     parser.add_argument(
         "--model", type=str, default=None,
-        help="Override the Claude model to use"
+        help="Override the model to use"
     )
     parser.add_argument(
         "--budget", type=float, default=None,
@@ -43,6 +43,20 @@ def main():
         help="Enable Goose agent delegation"
     )
 
+    # Local LLM options
+    parser.add_argument(
+        "--local", action="store_true",
+        help="Use a local LLM via Ollama/OpenAI-compatible API instead of Anthropic"
+    )
+    parser.add_argument(
+        "--local-model", type=str, default=None,
+        help="Local model name (e.g. qwen2.5:14b, llama3.1:8b, deepseek-coder-v2)"
+    )
+    parser.add_argument(
+        "--local-api-base", type=str, default=None,
+        help="Local LLM API base URL (default: http://localhost:11434/v1)"
+    )
+
     args = parser.parse_args()
 
     config = OpenClawConfig()
@@ -58,6 +72,21 @@ def main():
         config.claude_cli_enabled = True
     if args.enable_goose:
         config.goose_enabled = True
+
+    # Local LLM config
+    if args.local:
+        config.provider = "local"
+        config.cost_per_input_token = 0.0
+        config.cost_per_output_token = 0.0
+        if not args.local_model and not args.model:
+            config.model = "qwen2.5:14b"
+    if args.local_model:
+        config.provider = "local"
+        config.model = args.local_model
+        config.cost_per_input_token = 0.0
+        config.cost_per_output_token = 0.0
+    if args.local_api_base:
+        config.local_api_base = args.local_api_base
 
     agent = OpenClawAgent(config)
     agent.run(task=args.task, scan_only=args.scan_only)
