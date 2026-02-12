@@ -21,7 +21,7 @@ public class PhaseToColorConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class BoolToRunningTextConverter : IValueConverter
@@ -30,7 +30,7 @@ public class BoolToRunningTextConverter : IValueConverter
         => value is true ? "Running" : "Stopped";
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class BoolToRunningColorConverter : IValueConverter
@@ -39,7 +39,7 @@ public class BoolToRunningColorConverter : IValueConverter
         => value is true ? Color.FromArgb("#00e676") : Color.FromArgb("#ff1744");
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class PriorityToColorConverter : IValueConverter
@@ -57,7 +57,7 @@ public class PriorityToColorConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class StatusToColorConverter : IValueConverter
@@ -76,7 +76,7 @@ public class StatusToColorConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class LogLevelToColorConverter : IValueConverter
@@ -95,7 +95,7 @@ public class LogLevelToColorConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class BoolToBlockedColorConverter : IValueConverter
@@ -104,7 +104,7 @@ public class BoolToBlockedColorConverter : IValueConverter
         => value is true ? Color.FromArgb("#ff1744") : Color.FromArgb("#00e676");
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class BoolToBlockedTextConverter : IValueConverter
@@ -113,7 +113,7 @@ public class BoolToBlockedTextConverter : IValueConverter
         => value is true ? "BLOCKED" : "ALLOWED";
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class InverseBoolConverter : IValueConverter
@@ -131,7 +131,7 @@ public class DoubleToPercentConverter : IValueConverter
         => value is double d ? $"{d:P0}" : "0%";
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class SafetyRatingToColorConverter : IValueConverter
@@ -150,7 +150,7 @@ public class SafetyRatingToColorConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class ChatRoleToColorConverter : IValueConverter
@@ -169,7 +169,7 @@ public class ChatRoleToColorConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class ChatRoleToAlignmentConverter : IValueConverter
@@ -178,7 +178,7 @@ public class ChatRoleToAlignmentConverter : IValueConverter
         => value is ChatRole.User ? LayoutOptions.End : LayoutOptions.Start;
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class ChatRoleToBgColorConverter : IValueConverter
@@ -196,7 +196,7 @@ public class ChatRoleToBgColorConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class ChatRoleToLabelConverter : IValueConverter
@@ -215,7 +215,7 @@ public class ChatRoleToLabelConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
 
 public class BoolToConnectedTextConverter : IValueConverter
@@ -224,5 +224,5 @@ public class BoolToConnectedTextConverter : IValueConverter
         => value is true ? "Connected" : "Disconnected";
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => null;
 }
