@@ -1,407 +1,145 @@
-# Swiftagent - Autonomous Game Development Infrastructure
+# Swiftagent - Multi-Agent Task Orchestration Platform
 
-A comprehensive framework for building reusable iOS/macOS game components using Swift Package Manager, with a cross-platform .NET MAUI control panel and autonomous AI agents (OpenClaw + legacy Agent).
+A production-ready platform for managing tasks through multiple open-source AI agents, with a cross-platform .NET MAUI control panel for real-time monitoring and task creation.
 
-## Architecture Overview
+## Architecture
 
 ```
-/Swiftagent
-├── /AgentUI                  # .NET MAUI cross-platform control panel
-│   ├── /Platforms
-│   │   ├── /MacCatalyst     # macOS (Mac Catalyst) support
-│   │   ├── /Windows         # Windows 10+ support
-│   │   ├── /iOS             # iOS 16+ support
-│   │   └── /Android         # Android 5.0+ support
-│   ├── /Services            # Agent monitoring, backlog, OpenClaw services
-│   ├── /ViewModels          # MVVM view models (Dashboard, Backlog, Console, etc.)
-│   ├── /Views               # XAML pages (Dashboard, OpenClaw, Skills, etc.)
-│   └── /Models              # Data models (AgentState, OpenClawModels)
+Swiftagent/
+├── OpenClaw/          # Python agent orchestrator (Claude API)
+│   ├── agent.py       # Main OODA loop + multi-agent coordination
+│   ├── config.py      # Configuration (workspace, budget, models, agents)
+│   ├── safety.py      # Safety guardrails (sandboxing, command filtering)
+│   ├── scanner.py     # Workspace scanner for improvements
+│   ├── __main__.py    # CLI entry point
+│   ├── prompts/       # System prompts for the agent
+│   └── skills/        # 14 tool definitions + executor
 │
-├── /OpenClaw                 # Python-based autonomous improvement agent
-│   ├── agent.py             # Main OODA improvement loop
-│   ├── config.py            # Configuration management
-│   ├── safety.py            # Sandboxing and safety guards
-│   ├── scanner.py           # Code quality scanner
-│   ├── /skills              # Tool definitions and executor
-│   └── /prompts             # System prompts
+├── AgentUI/           # .NET MAUI cross-platform control panel
+│   ├── Models/        # Data models (tasks, agents, status)
+│   ├── Services/      # Agent/backlog/OpenClaw service layer
+│   ├── ViewModels/    # MVVM view models
+│   └── Views/         # 7 XAML pages (Dashboard, Tasks, Agents, etc.)
 │
-├── /Agent                    # Legacy Python agent infrastructure
-│   ├── game_agent.py        # Main agent loop (OODA pattern)
-│   ├── config.py            # Configuration management
-│   ├── safety_wrapper.py    # Sandboxing and safety policies
-│   ├── checkpoint_manager.py # State persistence and recovery
-│   └── context_manager.py   # RAG and context optimization
-│
-├── /Apps                     # Concrete game implementations
-│   └── /SpaceShooter        # Sample game demonstrating all packages
-│
-├── /Packages                 # Reusable Swift packages
-│   ├── /GameAuth            # Game Center authentication
-│   ├── /CoreUI              # Navigation, menus, settings
-│   ├── /MiniGameKit         # Game loop and state management
-│   ├── /PhysicsUtils        # SpriteKit helpers and vector math
-│   └── /AudioEngine         # Sound effects, music, and haptics
-│
-└── BACKLOG.md               # Agent task queue
+├── BACKLOG.md         # Task queue (shared between agents + MAUI)
+└── README.md
 ```
 
-## Packages
+## Agents
 
-### GameAuth
-Game Center authentication and player identity management.
+### OpenClaw (Primary Orchestrator)
+- Powered by Claude API (Anthropic)
+- OODA loop: reads backlog, plans, executes, verifies, commits
+- 14 skills: file I/O, shell, git, task management, code search, agent delegation
+- Safety sandbox with command filtering and file size limits
+- Cost tracking with daily budget enforcement
 
-```swift
-import GameAuth
+### Claude CLI
+- Anthropic's open-source CLI agent
+- Delegated sub-tasks from OpenClaw via `agent_delegate` skill
+- Install: `npm install -g @anthropic-ai/claude-code`
+- Enable: `CLAUDE_CLI_ENABLED=true`
 
-// Automatic authentication on app launch
-ContentView()
-    .withGameCenterAuthentication()
+### Goose
+- Block's open-source autonomous development agent
+- Delegated sub-tasks from OpenClaw via `agent_delegate` skill
+- Install: https://github.com/block/goose
+- Enable: `GOOSE_ENABLED=true`
 
-// Manual authentication
-await GameCenterManager.shared.authenticate()
+## MAUI Control Panel
 
-// Check authentication state
-switch GameCenterManager.shared.authenticationState {
-case .authenticated(let playerID, let displayName):
-    print("Welcome, \(displayName)!")
-case .unauthenticated:
-    print("Please sign in")
-case .error(let error):
-    print(error.localizedDescription)
-}
-```
+Cross-platform app (iOS, macOS, Android, Windows) with 7 pages:
 
-### CoreUI
-Navigation coordination, data-driven menus, and settings management.
+| Page | Purpose |
+|------|---------|
+| **Dashboard** | Agent status, OODA phase, cost, tasks progress |
+| **Tasks** | Create, view, filter tasks with priority/category/agent assignment |
+| **Agents** | Chat interface, agent connection management, session history |
+| **Skills** | Browse and toggle 14 agent skills with safety ratings |
+| **Console** | Live streaming log output with filtering |
+| **Safety & Cost** | Blocked commands, budget tracking, safety events |
+| **Settings** | Workspace, model, budget, safety configuration |
 
-```swift
-import CoreUI
+## Quick Start
 
-// Navigation with Coordinator pattern
-@StateObject private var coordinator = DefaultGameCoordinator()
-
-CoordinatedNavigationView(coordinator: coordinator) {
-    MainMenuView()
-}
-
-// Data-driven menus
-let items = MenuBuilder.mainMenu(
-    onPlay: { coordinator.startGame() },
-    onSettings: { coordinator.showSettings() }
-)
-MenuView(title: "My Game", items: items, theme: .sciFi)
-
-// Drop-in settings view
-SettingsView()  // Full persistence handled automatically
-```
-
-**Built-in Themes:**
-- `.default` - Clean, modern appearance
-- `.sciFi` - Futuristic cyan/blue theme
-- `.fantasy` - Warm, parchment-like appearance
-- `.retro` - Pixel-art inspired
-- `.dark` - Minimalist dark theme
-
-### MiniGameKit
-Game loop, state management, and lifecycle handling.
-
-```swift
-import MiniGameKit
-
-// Game loop with fixed timestep
-@StateObject private var gameLoop = GameLoop(targetFPS: 60)
-
-// Handle updates
-gameLoop.onUpdate = { deltaTime in
-    player.position += velocity * deltaTime
-}
-
-// State management
-gameLoop.start()
-gameLoop.pause()
-gameLoop.resume()
-gameLoop.stop()
-
-// Score tracking
-gameLoop.addScore(100)
-
-// Auto-pause on app background
-MyGameView()
-    .autoPause(onPause: { gameLoop.pause() })
-
-// Reusable pause overlay
-PauseOverlay(
-    isPresented: gameLoop.state == .paused,
-    onResume: { gameLoop.resume() },
-    onQuit: { coordinator.showMenu() }
-)
-```
-
-### PhysicsUtils
-SpriteKit helpers, collision categories, and vector math.
-
-```swift
-import PhysicsUtils
-
-// Vector math extensions
-let velocity = CGPoint(angle: .pi / 4, length: 100)
-let normalized = velocity.normalized
-let distance = point1.distance(to: point2)
-let reflection = velocity.reflected(normal: surfaceNormal)
-let midpoint = point1.lerp(to: point2, t: 0.5)
-
-// Type-safe collision categories
-extension CollisionCategory {
-    static let player = CollisionCategory(rawValue: 1 << 0)
-    static let enemy = CollisionCategory(rawValue: 1 << 1)
-}
-
-playerNode.physicsBody?.configure(
-    category: .player,
-    collidesWith: [.enemy, .wall],
-    contactsWith: [.enemy, .collectible]
-)
-
-// BaseGameScene with built-in delta time
-class MyScene: BaseGameScene {
-    override func update(deltaTime: TimeInterval) {
-        // Called every frame with proper delta time
-    }
-
-    override func handleTap(at location: CGPoint) {
-        // Unified input for iOS and macOS
-    }
-
-    override func handleContact(_ contact: SKPhysicsContact, began: Bool) {
-        // Physics contact handling
-    }
-}
-```
-
-### AudioEngine
-Sound effects, background music, and haptic feedback.
-
-```swift
-import AudioEngine
-
-// Sound effects
-SoundManager.shared.playSound("explosion")
-SoundManager.shared.playSound("laser", volume: 0.8, rate: 1.2, pan: -0.5)
-
-// Preload for instant playback
-SoundManager.shared.preloadSounds(["jump", "coin", "hit"])
-
-// Background music
-SoundManager.shared.playMusic("level_theme", loop: true, fadeIn: 2.0)
-SoundManager.shared.pauseMusic()
-SoundManager.shared.stopMusic(fadeOut: 1.0)
-
-// Volume control
-SoundManager.shared.masterVolume = 0.8
-SoundManager.shared.musicVolume = 0.5
-SoundManager.shared.sfxVolume = 1.0
-
-// Haptic feedback
-HapticFeedback.shared.impact(.medium)
-HapticFeedback.shared.notification(.success)
-
-// Game-specific patterns
-HapticFeedback.shared.explosion()
-HapticFeedback.shared.collect()
-HapticFeedback.shared.damage()
-
-// Custom patterns
-HapticFeedback.shared.playPattern([
-    .impact(.light),
-    .wait(0.1),
-    .impact(.heavy)
-])
-```
-
-## Creating a New Game
-
-1. Create a new app directory:
-```bash
-mkdir -p Apps/MyGame/Sources
-```
-
-2. Create `Package.swift`:
-```swift
-// swift-tools-version: 5.9
-import PackageDescription
-
-let package = Package(
-    name: "MyGame",
-    platforms: [.iOS(.v16)],
-    dependencies: [
-        .package(path: "../../Packages/GameAuth"),
-        .package(path: "../../Packages/CoreUI"),
-        .package(path: "../../Packages/MiniGameKit"),
-        .package(path: "../../Packages/PhysicsUtils"),
-        .package(path: "../../Packages/AudioEngine"),
-    ],
-    targets: [
-        .executableTarget(
-            name: "MyGame",
-            dependencies: ["GameAuth", "CoreUI", "MiniGameKit", "PhysicsUtils", "AudioEngine"]
-        ),
-    ]
-)
-```
-
-3. Create your app entry point in `Sources/MyGameApp.swift`
-
-## AgentUI - Cross-Platform Control Panel (.NET MAUI)
-
-A .NET MAUI app for monitoring and controlling the autonomous agents. Runs on Mac, Windows, iOS, and Android.
-
-### Supported Platforms
-
-| Platform | Status | Min Version |
-|----------|--------|-------------|
-| macOS (Mac Catalyst) | Supported | macOS 16.0+ |
-| Windows | Supported | Windows 10 (17763+) |
-| iOS | Supported | iOS 16.0+ |
-| Android | Supported | API 21 (5.0+) |
-
-### Pages
-
-- **Dashboard** - Agent status overview, iteration tracking, cost monitoring
-- **OpenClaw** - Chat interface and configuration for the OpenClaw agent
-- **Skills** - Browse, enable/disable, and manage agent skills
-- **Backlog** - View and manage the task backlog
-- **Console** - Live agent log output
-- **Safety & Cost** - Safety events, blocked commands, budget tracking
-- **Settings** - Agent configuration (workspace path, model, budget, etc.)
-
-### Prerequisites (Mac)
-
-1. Install [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-2. Install the MAUI workload:
-   ```bash
-   sudo dotnet workload install maui
-   ```
-3. Xcode 15+ must be installed (for Mac Catalyst builds)
-
-### Running on Mac
+### 1. Set up the agent
 
 ```bash
-cd AgentUI
-
-# Restore dependencies
-dotnet restore
-
-# Build and run on Mac (via Mac Catalyst)
-dotnet build -f net8.0-maccatalyst
-dotnet run -f net8.0-maccatalyst
-```
-
-### Running on Windows
-
-```powershell
-cd AgentUI
-
-# Restore dependencies
-dotnet restore
-
-# Build and run on Windows
-dotnet build -f net8.0-windows10.0.19041.0
-dotnet run -f net8.0-windows10.0.19041.0
-```
-
-## OpenClaw - Autonomous Improvement Agent
-
-The `/OpenClaw` directory contains a Python-based autonomous agent powered by Claude that iterates on the codebase using an OODA (Observe, Orient, Decide, Act) loop.
-
-### Features
-
-- Processes tasks from `BACKLOG.md` by priority
-- 13 built-in skills: file read/write/patch, shell exec, swift build/test, git operations, code search
-- Safety sandbox: path confinement, command blocklist, file size limits, safe deletion
-- Code quality scanner: finds TODOs, force unwraps, empty catches, missing tests
-- Daily cost budget enforcement
-
-### Running OpenClaw
-
-```bash
-# Set your Anthropic API key
-export ANTHROPIC_API_KEY=sk-ant-...
-
 # Install dependencies
-pip install -r OpenClaw/requirements.txt
+cd OpenClaw
+pip install -r requirements.txt
 
-# Run the agent
+# Configure
+export ANTHROPIC_API_KEY=sk-ant-...
+export OPENCLAW_WORKSPACE=/path/to/your/project
+
+# Optional: enable additional agents
+export CLAUDE_CLI_ENABLED=true
+export GOOSE_ENABLED=true
+```
+
+### 2. Run the agent
+
+```bash
+# Run the backlog loop (picks tasks from BACKLOG.md)
 python -m OpenClaw
 
-# With options
-python -m OpenClaw --model claude-opus-4-6 --budget 10.0 --max-iterations 5
+# Run a specific task
+python -m OpenClaw --task "Write unit tests for the auth module"
+
+# Scan for improvements (read-only)
+python -m OpenClaw --scan-only
+
+# Dry run (plan without executing)
+python -m OpenClaw --dry-run
+
+# Enable multi-agent delegation
+python -m OpenClaw --enable-claude-cli --enable-goose
 ```
 
-## Legacy Agent
+### 3. Create tasks
 
-The `/Agent` directory contains the original Python-based autonomous agent with RAG support.
+Tasks can be created from:
+- **MAUI app**: Tasks page -> "+ New Task" button
+- **BACKLOG.md**: Add markdown lines directly
+- **OpenClaw agent**: Uses the `task_create` skill
+- **CLI**: Edit BACKLOG.md and the agent picks them up
 
-### Running the Legacy Agent
+Task format:
+```markdown
+- [ ] [P1] [Backend] Implement user authentication @agent:openclaw
+```
+
+### 4. Monitor via MAUI
 
 ```bash
-cd Agent
-pip install -r requirements.txt
-python game_agent.py
+cd AgentUI
+dotnet build
+dotnet run
 ```
 
-### Agent Configuration
+The MAUI app polls `openclaw_status.json` and `openclaw.log` from the workspace to show real-time status, cost, and agent activity.
 
-Configure via environment variables:
-```bash
-export AGENT_WORKSPACE_ROOT=/path/to/workspace
-export AGENT_DAILY_BUDGET=5.0
-export AGENT_LOG_LEVEL=INFO
-```
+## Configuration
 
-### Safety Features (both agents)
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `ANTHROPIC_API_KEY` | (required) | Claude API key |
+| `OPENCLAW_MODEL` | `claude-sonnet-4-5-20250929` | Model to use |
+| `OPENCLAW_WORKSPACE` | Parent of OpenClaw dir | Workspace root |
+| `OPENCLAW_BUDGET` | `5.00` | Daily budget in USD |
+| `OPENCLAW_LOG_LEVEL` | `INFO` | Log level |
+| `OPENCLAW_DRY_RUN` | `false` | Plan without executing |
+| `CLAUDE_CLI_ENABLED` | `false` | Enable Claude CLI agent |
+| `CLAUDE_CLI_PATH` | `claude` | Path to Claude CLI |
+| `GOOSE_ENABLED` | `false` | Enable Goose agent |
+| `GOOSE_PATH` | `goose` | Path to Goose CLI |
 
-- **Sandboxing**: Agent confined to workspace directory
-- **Command filtering**: Dangerous commands blocked
-- **Safe deletion**: Files moved to trash, not deleted
-- **Budget caps**: Daily spending limits
-- **Checkpointing**: State recovery after crashes
+## Safety
 
-## Requirements
-
-| Component | Requirements |
-|-----------|-------------|
-| Swift Packages | Swift 5.9+, Xcode 15+, iOS 16+ / macOS 13+ / tvOS 16+ |
-| AgentUI (MAUI) | .NET 8 SDK, MAUI workload, Xcode 15+ (Mac) or VS 2022 (Windows) |
-| OpenClaw Agent | Python 3.10+, Anthropic API key |
-| Legacy Agent | Python 3.10+ |
-
-## Building Swift Packages
-
-```bash
-# Build all packages
-swift build
-
-# Run tests
-swift test
-
-# Build specific package
-cd Packages/GameAuth
-swift build
-```
-
-## License
-
-MIT License - See LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please read the contributing guidelines before submitting PRs.
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request
-
----
-
-*Built with the Claude Agent SDK for autonomous software development*
+- Commands sandboxed to workspace directory
+- Blocked: `sudo`, `rm -rf /`, `chmod`, device writes, process kills
+- Allowed: git, python, node, docker, go, cargo, make, curl, etc.
+- File size limit: 1 MB per file, 100 files per session
+- Safe delete: files moved to `.openclaw_trash/` instead of permanent deletion
+- Daily budget enforcement stops the agent when exhausted

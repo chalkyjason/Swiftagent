@@ -40,6 +40,9 @@ public class AgentStatus
     public DateTime SessionStart { get; set; } = DateTime.Now;
     public TimeSpan Uptime => DateTime.Now - SessionStart;
     public List<string> RecentActions { get; set; } = new();
+
+    // Multi-agent status
+    public Dictionary<string, string> AgentStatuses { get; set; } = new();
 }
 
 public class BacklogTask
@@ -50,6 +53,7 @@ public class BacklogTask
     public TaskPriority Priority { get; set; } = TaskPriority.P2;
     public BacklogTaskStatus Status { get; set; } = BacklogTaskStatus.Pending;
     public string Category { get; set; } = string.Empty;
+    public string AssignedAgent { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? CompletedAt { get; set; }
 }
@@ -88,4 +92,6 @@ public class AgentConfig
     public bool SafeDeleteEnabled { get; set; } = true;
     public bool SandboxEnabled { get; set; } = true;
     public int MaxContextTokens { get; set; } = 100_000;
+    public bool ClaudeCliEnabled { get; set; }
+    public bool GooseEnabled { get; set; }
 }

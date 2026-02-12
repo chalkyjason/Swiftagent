@@ -5,7 +5,7 @@
              xmlns:models="clr-namespace:AgentUI.Models"
              xmlns:conv="clr-namespace:AgentUI.Converters"
              x:Class="AgentUI.Views.OpenClawPage"
-             Title="OpenClaw"
+             Title="Agents"
              x:DataType="vm:OpenClawViewModel">
 
     <ContentPage.Resources>

@@ -27,9 +27,9 @@ public enum ChatRole
 public class OpenClawStatus
 {
     public OpenClawConnectionState ConnectionState { get; set; } = OpenClawConnectionState.Disconnected;
-    public string AgentName { get; set; } = string.Empty;
+    public string AgentName { get; set; } = "OpenClaw";
     public string SelectedModel { get; set; } = string.Empty;
-    public string Version { get; set; } = string.Empty;
+    public string Version { get; set; } = "2.0.0";
     public int ActiveSkillsCount { get; set; }
     public int TotalSkillsCount { get; set; }
     public int ConversationCount { get; set; }
@@ -39,6 +39,9 @@ public class OpenClawStatus
     public string Platform { get; set; } = string.Empty;
     public int TokensUsedToday { get; set; }
     public bool SafetyScannerEnabled { get; set; }
+
+    // Multi-agent statuses: key = agent name, value = status string
+    public Dictionary<string, string> AgentStatuses { get; set; } = new();
 }
 
 public class OpenClawSkill
@@ -48,7 +51,7 @@ public class OpenClawSkill
     public string Description { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public string Author { get; set; } = string.Empty;
-    public string Version { get; set; } = "1.0.0";
+    public string Version { get; set; } = "2.0.0";
     public SkillSafetyRating SafetyRating { get; set; } = SkillSafetyRating.Unreviewed;
     public bool IsEnabled { get; set; }
     public bool IsWhitelisted { get; set; }
@@ -82,10 +85,17 @@ public class OpenClawConfig
 {
     public string Host { get; set; } = "localhost";
     public int Port { get; set; } = 3142;
-    public string SelectedModel { get; set; } = string.Empty;
-    public List<string> AvailableModels { get; set; } = new();
-    public bool SafetyScannerEnabled { get; set; }
-    public bool WhitelistOnlyMode { get; set; }
+    public string SelectedModel { get; set; } = "claude-sonnet-4-5-20250929";
+    public List<string> AvailableModels { get; set; } = new()
+    {
+        "claude-sonnet-4-5-20250929",
+        "claude-opus-4-6",
+        "claude-haiku-4-5-20251001",
+    };
+    public bool SafetyScannerEnabled { get; set; } = true;
+    public bool WhitelistOnlyMode { get; set; } = true;
     public string MessagingPlatform { get; set; } = string.Empty;
     public List<string> AvailablePlatforms { get; set; } = new();
+    public bool ClaudeCliEnabled { get; set; }
+    public bool GooseEnabled { get; set; }
 }

@@ -1,4 +1,4 @@
-"""OpenClaw agent configuration."""
+"""OpenClaw agent configuration — general-purpose multi-agent task runner."""
 
 import os
 from dataclasses import dataclass, field
@@ -40,6 +40,12 @@ class OpenClawConfig:
     dry_run: bool = os.getenv("OPENCLAW_DRY_RUN", "false").lower() == "true"
     log_level: str = os.getenv("OPENCLAW_LOG_LEVEL", "INFO")
 
+    # Multi-agent settings
+    goose_enabled: bool = os.getenv("GOOSE_ENABLED", "false").lower() == "true"
+    goose_path: str = os.getenv("GOOSE_PATH", "goose")
+    claude_cli_enabled: bool = os.getenv("CLAUDE_CLI_ENABLED", "false").lower() == "true"
+    claude_cli_path: str = os.getenv("CLAUDE_CLI_PATH", "claude")
+
     # Paths (derived)
     @property
     def backlog_path(self) -> Path:
@@ -58,12 +64,16 @@ class OpenClawConfig:
         return self.workspace_root / ".openclaw_trash"
 
     @property
-    def packages_dir(self) -> Path:
-        return self.workspace_root / "Packages"
+    def tasks_dir(self) -> Path:
+        return self.workspace_root / ".openclaw_tasks"
 
     @property
-    def apps_dir(self) -> Path:
-        return self.workspace_root / "Apps"
+    def status_path(self) -> Path:
+        return self.workspace_root / "openclaw_status.json"
+
+    @property
+    def skills_path(self) -> Path:
+        return self.workspace_root / "openclaw_skills.json"
 
     def validate(self) -> list[str]:
         """Return list of config errors, empty if valid."""

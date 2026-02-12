@@ -1,247 +1,164 @@
 """Skill (tool) definitions for the OpenClaw agent.
 
-Each skill maps to a Claude tool_use schema and a local executor function.
+General-purpose task execution skills with multi-agent delegation.
 """
 
 ALL_SKILLS = [
     {
         "name": "shell_exec",
         "description": (
-            "Execute a shell command in the workspace. Only allowed commands "
-            "will run (swift, git, ls, grep, etc). Dangerous or out-of-sandbox "
-            "commands are blocked by the safety guard."
+            "Execute a shell command in the workspace. Supports general-purpose "
+            "dev tools (git, python, node, docker, go, cargo, etc). "
+            "Dangerous commands are blocked by the safety guard."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "command": {
-                    "type": "string",
-                    "description": "The shell command to execute."
-                },
-                "working_dir": {
-                    "type": "string",
-                    "description": "Working directory (relative to workspace root). Optional."
-                }
+                "command": {"type": "string", "description": "The shell command to execute."},
+                "working_dir": {"type": "string", "description": "Working directory relative to workspace root. Optional."}
             },
             "required": ["command"]
         }
     },
     {
         "name": "file_read",
-        "description": (
-            "Read the contents of a file in the workspace. "
-            "Path must be relative to the workspace root."
-        ),
+        "description": "Read a file's contents. Path is relative to workspace root.",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "File path relative to workspace root."
-                }
-            },
+            "properties": {"path": {"type": "string", "description": "File path relative to workspace root."}},
             "required": ["path"]
         }
     },
     {
         "name": "file_write",
-        "description": (
-            "Create or overwrite a file in the workspace. The file content is "
-            "written atomically. Path must be within the sandbox."
-        ),
+        "description": "Create or overwrite a file. Path must be within the sandbox.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "File path relative to workspace root."
-                },
-                "content": {
-                    "type": "string",
-                    "description": "Full content to write to the file."
-                }
+                "path": {"type": "string", "description": "File path relative to workspace root."},
+                "content": {"type": "string", "description": "Full content to write."}
             },
             "required": ["path", "content"]
         }
     },
     {
         "name": "file_patch",
-        "description": (
-            "Apply a targeted edit to an existing file by replacing an exact "
-            "string match. Use this instead of file_write when making small "
-            "changes to preserve the rest of the file."
-        ),
+        "description": "Apply a targeted edit by replacing an exact string match in a file.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "File path relative to workspace root."
-                },
-                "old_string": {
-                    "type": "string",
-                    "description": "The exact string to find and replace."
-                },
-                "new_string": {
-                    "type": "string",
-                    "description": "The replacement string."
-                }
+                "path": {"type": "string", "description": "File path relative to workspace root."},
+                "old_string": {"type": "string", "description": "The exact string to find and replace."},
+                "new_string": {"type": "string", "description": "The replacement string."}
             },
             "required": ["path", "old_string", "new_string"]
         }
     },
     {
         "name": "file_list",
-        "description": (
-            "List files and directories under a given path. "
-            "Supports optional glob pattern filtering."
-        ),
+        "description": "List files under a path with optional glob filtering.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Directory path relative to workspace root."
-                },
-                "pattern": {
-                    "type": "string",
-                    "description": "Glob pattern filter (e.g. '**/*.swift'). Optional."
-                }
+                "path": {"type": "string", "description": "Directory path relative to workspace root."},
+                "pattern": {"type": "string", "description": "Glob pattern (e.g. '**/*.py'). Optional."}
             },
             "required": ["path"]
         }
     },
     {
-        "name": "swift_build",
-        "description": (
-            "Build a Swift package. Runs 'swift build' in the specified "
-            "package directory and returns the build output."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "package_path": {
-                    "type": "string",
-                    "description": "Path to the Swift package directory, relative to workspace root."
-                }
-            },
-            "required": ["package_path"]
-        }
-    },
-    {
-        "name": "swift_test",
-        "description": (
-            "Run tests for a Swift package. Runs 'swift test' in the "
-            "specified package directory and returns test results."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "package_path": {
-                    "type": "string",
-                    "description": "Path to the Swift package directory, relative to workspace root."
-                }
-            },
-            "required": ["package_path"]
-        }
-    },
-    {
         "name": "git_status",
-        "description": "Show the current git status of the workspace.",
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-        }
+        "description": "Show git status of the workspace.",
+        "input_schema": {"type": "object", "properties": {}}
     },
     {
         "name": "git_diff",
-        "description": "Show unstaged changes in the workspace.",
+        "description": "Show unstaged changes.",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Optional path to diff. If omitted, diffs entire workspace."
-                }
-            },
+            "properties": {"path": {"type": "string", "description": "Optional path to diff."}}
         }
     },
     {
         "name": "git_commit",
-        "description": (
-            "Stage specified files and create a git commit. "
-            "Only committed if all files are within the sandbox."
-        ),
+        "description": "Stage files and create a git commit.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "files": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of file paths to stage (relative to workspace root)."
-                },
-                "message": {
-                    "type": "string",
-                    "description": "Commit message."
-                }
+                "files": {"type": "array", "items": {"type": "string"}, "description": "Files to stage."},
+                "message": {"type": "string", "description": "Commit message."}
             },
             "required": ["files", "message"]
         }
     },
     {
-        "name": "backlog_read",
-        "description": "Read the current BACKLOG.md and return its contents.",
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-        }
-    },
-    {
-        "name": "backlog_update_task",
-        "description": (
-            "Update the status of a task in BACKLOG.md. "
-            "Can mark tasks as in-progress, completed, or add new tasks."
-        ),
+        "name": "task_create",
+        "description": "Create a new task in BACKLOG.md tracked by the MAUI UI.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "task_description": {
-                    "type": "string",
-                    "description": "The task description to find/update."
-                },
-                "new_status": {
-                    "type": "string",
-                    "enum": ["pending", "in_progress", "completed"],
-                    "description": "The new status for the task."
-                }
+                "title": {"type": "string", "description": "Short task title."},
+                "description": {"type": "string", "description": "Detailed description."},
+                "priority": {"type": "string", "enum": ["P1", "P2", "P3"], "description": "P1=high, P2=medium, P3=low."},
+                "category": {"type": "string", "description": "Category (Backend, Frontend, DevOps, etc)."},
+                "agent": {"type": "string", "enum": ["openclaw", "claude", "goose", "any"], "description": "Assigned agent."}
             },
-            "required": ["task_description", "new_status"]
+            "required": ["title", "priority"]
+        }
+    },
+    {
+        "name": "task_list",
+        "description": "List all tasks from the backlog with current status.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "status_filter": {"type": "string", "enum": ["all", "pending", "in_progress", "completed", "blocked"]}
+            }
+        }
+    },
+    {
+        "name": "task_update",
+        "description": "Update a task's status in BACKLOG.md.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task_title": {"type": "string", "description": "Task title to find/update."},
+                "new_status": {"type": "string", "enum": ["pending", "in_progress", "completed", "blocked"]},
+                "notes": {"type": "string", "description": "Optional notes."}
+            },
+            "required": ["task_title", "new_status"]
         }
     },
     {
         "name": "search_code",
-        "description": (
-            "Search for a pattern across the codebase. "
-            "Uses grep-like matching across all source files."
-        ),
+        "description": "Search for a regex pattern across the codebase.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "pattern": {
-                    "type": "string",
-                    "description": "Search pattern (supports basic regex)."
-                },
-                "file_pattern": {
-                    "type": "string",
-                    "description": "Glob to filter files (e.g. '*.swift'). Optional."
-                },
-                "path": {
-                    "type": "string",
-                    "description": "Directory to search in (relative to workspace). Optional."
-                }
+                "pattern": {"type": "string", "description": "Regex pattern."},
+                "file_pattern": {"type": "string", "description": "Glob filter (e.g. '*.py'). Optional."},
+                "path": {"type": "string", "description": "Directory to search. Optional."}
             },
             "required": ["pattern"]
         }
+    },
+    {
+        "name": "agent_delegate",
+        "description": "Delegate a sub-task to Claude CLI or Goose agent.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "agent": {"type": "string", "enum": ["claude", "goose"], "description": "Target agent."},
+                "task": {"type": "string", "description": "Task prompt for the agent."},
+                "working_dir": {"type": "string", "description": "Working dir relative to workspace. Optional."}
+            },
+            "required": ["agent", "task"]
+        }
+    },
+    {
+        "name": "agent_status",
+        "description": "Check availability of all agents (OpenClaw, Claude CLI, Goose).",
+        "input_schema": {"type": "object", "properties": {}}
     },
 ]
 

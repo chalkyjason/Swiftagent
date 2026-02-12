@@ -1,7 +1,6 @@
 """Entry point: python -m OpenClaw"""
 
 import argparse
-import sys
 
 from .agent import OpenClawAgent
 from .config import OpenClawConfig
@@ -9,7 +8,7 @@ from .config import OpenClawConfig
 
 def main():
     parser = argparse.ArgumentParser(
-        description="OpenClaw — autonomous improvement agent for Swiftagent"
+        description="OpenClaw — autonomous multi-agent task orchestrator"
     )
     parser.add_argument(
         "--task", type=str, default=None,
@@ -33,7 +32,15 @@ def main():
     )
     parser.add_argument(
         "--max-iterations", type=int, default=None,
-        help="Override max improvement iterations"
+        help="Override max task iterations"
+    )
+    parser.add_argument(
+        "--enable-claude-cli", action="store_true",
+        help="Enable Claude CLI agent delegation"
+    )
+    parser.add_argument(
+        "--enable-goose", action="store_true",
+        help="Enable Goose agent delegation"
     )
 
     args = parser.parse_args()
@@ -47,6 +54,10 @@ def main():
         config.daily_budget = args.budget
     if args.max_iterations:
         config.max_iterations = args.max_iterations
+    if args.enable_claude_cli:
+        config.claude_cli_enabled = True
+    if args.enable_goose:
+        config.goose_enabled = True
 
     agent = OpenClawAgent(config)
     agent.run(task=args.task, scan_only=args.scan_only)

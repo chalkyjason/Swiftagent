@@ -8,8 +8,6 @@ namespace AgentUI.Services;
 /// Service that connects to and manages the local OpenClaw agent instance.
 /// Reads openclaw_status.json, openclaw_skills.json, and openclaw.log from
 /// the workspace — all written by the real Python agent.
-///
-/// Launch the agent: python -m OpenClaw [--dry-run] [--scan-only] [--task "..."]
 /// </summary>
 public class OpenClawService : IOpenClawService
 {
@@ -38,20 +36,16 @@ public class OpenClawService : IOpenClawService
         _statusPath = Path.Combine(_workspaceRoot, "openclaw_status.json");
         _skillsPath = Path.Combine(_workspaceRoot, "openclaw_skills.json");
 
-        // Empty state — all real values come from openclaw_status.json
         Status = new OpenClawStatus
         {
             ConnectionState = OpenClawConnectionState.Disconnected,
         };
 
-        // Try to load real state from disk immediately
         LoadStatusFromDisk();
         LoadSkillsFromDisk();
 
         _pollTimer = new Timer(PollStatus, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3));
     }
-
-    // ── Polling ─────────────────────────────────────────────────
 
     private void PollStatus(object? state)
     {
@@ -60,11 +54,8 @@ public class OpenClawService : IOpenClawService
             LoadStatusFromDisk();
             ReadOpenClawLog();
 
-            // Check if agent process is alive
             if (_agentProcess is { HasExited: false })
-            {
                 Status.ConnectionState = OpenClawConnectionState.Connected;
-            }
             else if (_agentProcess is { HasExited: true })
             {
                 Status.ConnectionState = OpenClawConnectionState.Disconnected;
@@ -73,10 +64,7 @@ public class OpenClawService : IOpenClawService
 
             StatusChanged?.Invoke(this, Status);
         }
-        catch
-        {
-            // Continue polling
-        }
+        catch { }
     }
 
     private void LoadStatusFromDisk()
@@ -116,11 +104,16 @@ public class OpenClawService : IOpenClawService
                 if (cost.TryGetProperty("total_tokens", out var tt))
                     Status.TokensUsedToday = tt.GetInt32();
             }
+
+            // Read multi-agent statuses
+            if (root.TryGetProperty("agents", out var agents))
+            {
+                Status.AgentStatuses.Clear();
+                foreach (var agent in agents.EnumerateObject())
+                    Status.AgentStatuses[agent.Name] = agent.Value.GetString() ?? "unknown";
+            }
         }
-        catch
-        {
-            // Corrupted or partially written — skip this cycle
-        }
+        catch { }
     }
 
     private void LoadSkillsFromDisk()
@@ -145,7 +138,7 @@ public class OpenClawService : IOpenClawService
                     Description = desc,
                     Category = CategorizeSkill(name),
                     Author = "openclaw",
-                    Version = "1.0.0",
+                    Version = "2.0.0",
                     SafetyRating = RateSkillSafety(name),
                     IsEnabled = true,
                     IsWhitelisted = true,
@@ -155,25 +148,23 @@ public class OpenClawService : IOpenClawService
             Status.ActiveSkillsCount = Skills.Count(s => s.IsEnabled);
             Status.TotalSkillsCount = Skills.Count;
         }
-        catch
-        {
-            // Will retry on next poll
-        }
+        catch { }
     }
 
     private static string CategorizeSkill(string name) => name switch
     {
         "shell_exec" => "System",
         "file_read" or "file_write" or "file_patch" or "file_list" => "Files",
-        "swift_build" or "swift_test" or "search_code" => "Development",
+        "search_code" => "Development",
         "git_status" or "git_diff" or "git_commit" => "Git",
-        "backlog_read" or "backlog_update_task" => "Project",
+        "task_create" or "task_list" or "task_update" => "Tasks",
+        "agent_delegate" or "agent_status" => "Agents",
         _ => "Other"
     };
 
     private static SkillSafetyRating RateSkillSafety(string name) => name switch
     {
-        "shell_exec" or "git_commit" or "file_write" or "file_patch" => SkillSafetyRating.Community,
+        "shell_exec" or "git_commit" or "file_write" or "file_patch" or "agent_delegate" => SkillSafetyRating.Community,
         _ => SkillSafetyRating.Verified
     };
 
@@ -189,18 +180,14 @@ public class OpenClawService : IOpenClawService
 
         while (reader.ReadLine() is { } line)
         {
-            // Extract token counts from cost log lines
             if (line.Contains("tokens)", StringComparison.OrdinalIgnoreCase))
             {
                 var match = Regex.Match(line, @"(\d[\d,]+)\s+tokens");
                 if (match.Success && int.TryParse(
                     match.Groups[1].Value.Replace(",", ""), out var tokens))
-                {
                     Status.TokensUsedToday = tokens;
-                }
             }
 
-            // Feed agent text and skill calls into the active conversation
             if (ActiveConversation != null)
             {
                 ChatMessage? msg = null;
@@ -225,6 +212,15 @@ public class OpenClawService : IOpenClawService
                         Timestamp = DateTime.Now
                     };
                 }
+                else if (line.Contains("Delegating to", StringComparison.OrdinalIgnoreCase))
+                {
+                    msg = new ChatMessage
+                    {
+                        Role = ChatRole.System,
+                        Content = line[(line.LastIndexOf(" - ") + 3)..].Trim(),
+                        Timestamp = DateTime.Now
+                    };
+                }
 
                 if (msg != null)
                 {
@@ -239,14 +235,16 @@ public class OpenClawService : IOpenClawService
         _lastLogPosition = fs.Position;
     }
 
-    // ── Connect / Disconnect (launches real Python agent) ───────
-
     public Task ConnectAsync()
     {
+        var args = "-m OpenClaw";
+        if (Config.ClaudeCliEnabled) args += " --enable-claude-cli";
+        if (Config.GooseEnabled) args += " --enable-goose";
+
         var startInfo = new System.Diagnostics.ProcessStartInfo
         {
             FileName = "python",
-            Arguments = "-m OpenClaw",
+            Arguments = args,
             WorkingDirectory = _workspaceRoot,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -260,7 +258,6 @@ public class OpenClawService : IOpenClawService
             Status.ConnectionState = OpenClawConnectionState.Connected;
             Status.ConnectedSince = DateTime.Now;
 
-            // Start a conversation to track this session
             var convo = new OpenClawConversation
             {
                 Title = $"Session {DateTime.Now:yyyy-MM-dd HH:mm}",
@@ -274,7 +271,6 @@ public class OpenClawService : IOpenClawService
         catch (Exception ex)
         {
             Status.ConnectionState = OpenClawConnectionState.Error;
-            // Surface the error so the user knows what went wrong
             var errConvo = new OpenClawConversation { Title = "Connection Error", IsActive = true };
             errConvo.Messages.Add(new ChatMessage
             {
@@ -307,8 +303,6 @@ public class OpenClawService : IOpenClawService
         return Task.CompletedTask;
     }
 
-    // ── Remaining interface methods ─────────────────────────────
-
     public Task<OpenClawStatus> GetStatusAsync() => Task.FromResult(Status);
 
     public Task UpdateConfigAsync(OpenClawConfig config)
@@ -322,7 +316,7 @@ public class OpenClawService : IOpenClawService
 
     public Task<List<OpenClawSkill>> GetSkillsAsync()
     {
-        LoadSkillsFromDisk();  // Refresh from disk
+        LoadSkillsFromDisk();
         return Task.FromResult(Skills.ToList());
     }
 
@@ -370,14 +364,12 @@ public class OpenClawService : IOpenClawService
         convo.LastMessageAt = DateTime.Now;
         MessageReceived?.Invoke(this, userMsg);
 
-        // When connected to a running agent, the response will come through
-        // the log polling. When disconnected, tell the user.
         if (Status.ConnectionState != OpenClawConnectionState.Connected)
         {
             var hint = new ChatMessage
             {
                 Role = ChatRole.System,
-                Content = "Agent is not running. Press Connect to start the OpenClaw agent.",
+                Content = "Agent is not running. Press Connect to start OpenClaw.",
                 Timestamp = DateTime.Now
             };
             convo.Messages.Add(hint);
