@@ -8,6 +8,7 @@ import logging
 import re
 import shutil
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -367,8 +368,50 @@ class SkillExecutor:
         else:
             return f"ERROR: Unknown agent: {agent}"
 
+    def _run_subprocess_with_retry(
+        self, cmd: str, working_dir: Path, agent_name: str,
+        max_retries: int = 3, base_delay: float = 2.0,
+    ) -> str:
+        """Run a subprocess command with exponential backoff retry on failure.
+
+        Retries on non-zero exit codes and timeouts. Does NOT retry on
+        FileNotFoundError (the binary is missing — retrying won't help).
+        """
+        last_error = ""
+        for attempt in range(max_retries):
+            try:
+                result = subprocess.run(
+                    cmd, shell=True, capture_output=True, text=True,
+                    cwd=str(working_dir), timeout=300,
+                )
+                output = result.stdout.strip()
+                if result.stderr:
+                    output += f"\nSTDERR: {result.stderr.strip()}"
+
+                if result.returncode == 0:
+                    logger.info(f"{agent_name} completed: {output[:200]}...")
+                    return output or f"(no output from {agent_name})"
+
+                last_error = f"Exit code: {result.returncode}\n{output}"
+                logger.warning(
+                    f"{agent_name} attempt {attempt + 1}/{max_retries} failed: "
+                    f"exit code {result.returncode}"
+                )
+            except subprocess.TimeoutExpired:
+                last_error = f"{agent_name} timed out after 300s"
+                logger.warning(
+                    f"{agent_name} attempt {attempt + 1}/{max_retries} timed out"
+                )
+
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.info(f"Retrying {agent_name} in {delay:.0f}s...")
+                time.sleep(delay)
+
+        return f"ERROR: {agent_name} failed after {max_retries} attempts. Last error: {last_error}"
+
     def _run_claude_cli(self, task: str, working_dir: Path) -> str:
-        """Run a task via Claude Code CLI."""
+        """Run a task via Claude Code CLI with retry."""
         cmd = f'{self.config.claude_cli_path} --print "{task}"'
         logger.info(f"Delegating to Claude CLI: {task[:80]}...")
 
@@ -376,24 +419,12 @@ class SkillExecutor:
             return f"[DRY RUN] Would delegate to Claude CLI: {task}"
 
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True,
-                cwd=str(working_dir), timeout=300
-            )
-            output = result.stdout.strip()
-            if result.stderr:
-                output += f"\nSTDERR: {result.stderr.strip()}"
-            if result.returncode != 0:
-                output += f"\nExit code: {result.returncode}"
-            logger.info(f"Claude CLI completed: {output[:200]}...")
-            return output or "(no output from Claude CLI)"
-        except subprocess.TimeoutExpired:
-            return "ERROR: Claude CLI timed out after 300s"
+            return self._run_subprocess_with_retry(cmd, working_dir, "Claude CLI")
         except FileNotFoundError:
             return f"ERROR: Claude CLI not found at '{self.config.claude_cli_path}'. Install with: npm install -g @anthropic-ai/claude-code"
 
     def _run_goose(self, task: str, working_dir: Path) -> str:
-        """Run a task via Goose agent."""
+        """Run a task via Goose agent with retry."""
         cmd = f'{self.config.goose_path} run "{task}"'
         logger.info(f"Delegating to Goose: {task[:80]}...")
 
@@ -401,19 +432,7 @@ class SkillExecutor:
             return f"[DRY RUN] Would delegate to Goose: {task}"
 
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True,
-                cwd=str(working_dir), timeout=300
-            )
-            output = result.stdout.strip()
-            if result.stderr:
-                output += f"\nSTDERR: {result.stderr.strip()}"
-            if result.returncode != 0:
-                output += f"\nExit code: {result.returncode}"
-            logger.info(f"Goose completed: {output[:200]}...")
-            return output or "(no output from Goose)"
-        except subprocess.TimeoutExpired:
-            return "ERROR: Goose timed out after 300s"
+            return self._run_subprocess_with_retry(cmd, working_dir, "Goose")
         except FileNotFoundError:
             return f"ERROR: Goose not found at '{self.config.goose_path}'. Install from: https://github.com/block/goose"
 

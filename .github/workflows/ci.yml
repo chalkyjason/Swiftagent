@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, "claude/**"]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  python-tests:
+    name: OpenClaw Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: OpenClaw
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: Run tests with coverage
+        run: python -m pytest tests/ --cov=. --cov-report=term-missing
+
+  dotnet-build:
+    name: AgentUI Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui
+
+      - name: Restore dependencies
+        run: dotnet restore AgentUI/AgentUI.csproj
+
+      - name: Build
+        run: dotnet build AgentUI/AgentUI.csproj --no-restore -f net8.0-android

@@ -1,8 +1,9 @@
 """Tests for OpenClaw skill executor."""
 
 import json
+import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -422,3 +423,65 @@ class TestAgentStatus:
     def test_status_shows_disabled_agents(self, executor):
         result = executor.execute("agent_status", {})
         assert "DISABLED" in result  # both claude and goose disabled by default
+
+
+# ---------------------------------------------------------------------------
+# Subprocess retry logic
+# ---------------------------------------------------------------------------
+
+class TestSubprocessRetry:
+    def test_retry_succeeds_on_second_attempt(self, executor, workspace):
+        fail = MagicMock(stdout="", stderr="oops", returncode=1)
+        ok = MagicMock(stdout="done", stderr="", returncode=0)
+
+        with patch("OpenClaw.skills.executor.subprocess.run", side_effect=[fail, ok]), \
+             patch("OpenClaw.skills.executor.time.sleep"):
+            result = executor._run_subprocess_with_retry(
+                "test cmd", workspace, "TestAgent", max_retries=3, base_delay=0,
+            )
+        assert "done" in result
+
+    def test_retry_exhausts_attempts(self, executor, workspace):
+        fail = MagicMock(stdout="", stderr="error", returncode=1)
+
+        with patch("OpenClaw.skills.executor.subprocess.run", return_value=fail), \
+             patch("OpenClaw.skills.executor.time.sleep"):
+            result = executor._run_subprocess_with_retry(
+                "bad cmd", workspace, "TestAgent", max_retries=2, base_delay=0,
+            )
+        assert "ERROR" in result
+        assert "2 attempts" in result
+
+    def test_retry_on_timeout(self, executor, workspace):
+        ok = MagicMock(stdout="recovered", stderr="", returncode=0)
+
+        with patch("OpenClaw.skills.executor.subprocess.run",
+                   side_effect=[subprocess.TimeoutExpired("cmd", 300), ok]), \
+             patch("OpenClaw.skills.executor.time.sleep"):
+            result = executor._run_subprocess_with_retry(
+                "slow cmd", workspace, "TestAgent", max_retries=2, base_delay=0,
+            )
+        assert "recovered" in result
+
+    def test_timeout_exhausts_all_retries(self, executor, workspace):
+        with patch("OpenClaw.skills.executor.subprocess.run",
+                   side_effect=subprocess.TimeoutExpired("cmd", 300)), \
+             patch("OpenClaw.skills.executor.time.sleep"):
+            result = executor._run_subprocess_with_retry(
+                "hangs", workspace, "TestAgent", max_retries=2, base_delay=0,
+            )
+        assert "ERROR" in result
+        assert "timed out" in result
+
+    def test_exponential_backoff_delays(self, executor, workspace):
+        fail = MagicMock(stdout="", stderr="err", returncode=1)
+
+        with patch("OpenClaw.skills.executor.subprocess.run", return_value=fail), \
+             patch("OpenClaw.skills.executor.time.sleep") as mock_sleep:
+            executor._run_subprocess_with_retry(
+                "fail cmd", workspace, "TestAgent", max_retries=3, base_delay=2.0,
+            )
+        # Should sleep with exponential backoff: 2s, 4s
+        assert mock_sleep.call_count == 2
+        assert mock_sleep.call_args_list[0][0][0] == pytest.approx(2.0)
+        assert mock_sleep.call_args_list[1][0][0] == pytest.approx(4.0)

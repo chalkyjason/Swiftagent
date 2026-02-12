@@ -15,6 +15,7 @@ from pathlib import Path
 import anthropic
 
 from .config import OpenClawConfig
+from .filelock import atomic_write_json
 from .prompts import SYSTEM_PROMPT, SCAN_PROMPT
 from .safety import SafetyGuard
 from .skills import get_skill_schemas
@@ -121,7 +122,7 @@ class OpenClawAgent:
             "agents": agents,
             "timestamp": datetime.now().isoformat(),
         }
-        self.config.status_path.write_text(json.dumps(status, indent=2))
+        atomic_write_json(self.config.status_path, status)
 
     def initialize(self):
         """Set up the agent: validate config, init API client."""
@@ -144,9 +145,7 @@ class OpenClawAgent:
         logger.info("Initialization complete.")
 
         # Write skills.json for the MAUI UI
-        self.config.skills_path.write_text(
-            json.dumps(get_skill_schemas(), indent=2)
-        )
+        atomic_write_json(self.config.skills_path, get_skill_schemas())
         self._write_status(phase="initialized")
 
     # -- Main loop --
