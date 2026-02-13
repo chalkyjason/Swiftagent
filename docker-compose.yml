@@ -1,11 +1,16 @@
-# Swiftagent — Local LLM setup via Ollama
+# Swiftagent — Local LLM setup via Ollama (LLaMA)
 #
 # Quick start:
 #   docker compose up -d
-#   docker compose exec ollama ollama pull qwen2.5:14b
+#   docker compose exec ollama ollama pull llama3.1:8b
 #
 # Then run OpenClaw with:
-#   python -m OpenClaw --local --local-model qwen2.5:14b
+#   python -m OpenClaw --local --local-model llama3.1:8b
+#
+# Other recommended models:
+#   docker compose exec ollama ollama pull llama3.2:3b      # Lightweight (~4GB VRAM)
+#   docker compose exec ollama ollama pull llama3.1:70b     # High quality (~40GB VRAM)
+#   docker compose exec ollama ollama pull codellama:13b    # Code-focused (~10GB VRAM)
 #
 # GPU support:
 #   NVIDIA: Works out of the box with nvidia-container-toolkit
