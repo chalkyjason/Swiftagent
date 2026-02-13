@@ -13,13 +13,13 @@ jobs:
         include:
           - os: macos-latest
             workload: maui
-            target_framework: net8.0-maccatalyst
+            target_framework: net9.0-maccatalyst
           - os: windows-latest
             workload: maui
-            target_framework: net8.0-windows10.0.19041.0
+            target_framework: net9.0-windows10.0.19041.0
           - os: ubuntu-latest
             workload: maui-android
-            target_framework: net8.0-android
+            target_framework: net9.0-android
 
     runs-on: ${{ matrix.os }}
 
@@ -29,7 +29,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Install MAUI workload
         run: dotnet workload install ${{ matrix.workload }}
