@@ -12,10 +12,10 @@ import time
 from datetime import datetime, date
 from pathlib import Path
 
-import anthropic
-
 from .config import OpenClawConfig
+from .filelock import atomic_write_json
 from .prompts import SYSTEM_PROMPT, SCAN_PROMPT
+from .providers import LLMProvider
 from .safety import SafetyGuard
 from .skills import get_skill_schemas
 from .skills.executor import SkillExecutor
@@ -78,7 +78,7 @@ class OpenClawAgent:
         self.safety = SafetyGuard(self.config)
         self.executor = SkillExecutor(self.config, self.safety)
         self.cost = CostTracker(self.config.daily_budget, self.config)
-        self.client: anthropic.Anthropic | None = None
+        self.provider: LLMProvider | None = None
         self.conversation: list[dict] = []
         self.iteration = 0
         self._shutdown = False
@@ -121,7 +121,7 @@ class OpenClawAgent:
             "agents": agents,
             "timestamp": datetime.now().isoformat(),
         }
-        self.config.status_path.write_text(json.dumps(status, indent=2))
+        atomic_write_json(self.config.status_path, status)
 
     def initialize(self):
         """Set up the agent: validate config, init API client."""
@@ -134,8 +134,11 @@ class OpenClawAgent:
                 logger.error(f"Config error: {e}")
             sys.exit(1)
 
-        self.client = anthropic.Anthropic(api_key=self.config.api_key)
+        self.provider = LLMProvider.for_config(self.config)
+        logger.info(f"Provider: {self.config.provider}")
         logger.info(f"Model: {self.config.model}")
+        if self.config.provider == "local":
+            logger.info(f"Local API: {self.config.local_api_base}")
         logger.info(f"Workspace: {self.config.workspace_root}")
         logger.info(f"Budget: ${self.config.daily_budget:.2f}/day")
         logger.info(f"Dry run: {self.config.dry_run}")
@@ -144,9 +147,7 @@ class OpenClawAgent:
         logger.info("Initialization complete.")
 
         # Write skills.json for the MAUI UI
-        self.config.skills_path.write_text(
-            json.dumps(get_skill_schemas(), indent=2)
-        )
+        atomic_write_json(self.config.skills_path, get_skill_schemas())
         self._write_status(phase="initialized")
 
     # -- Main loop --
@@ -218,7 +219,7 @@ class OpenClawAgent:
             if self._shutdown or self.cost.over_budget:
                 break
 
-            response = self.client.messages.create(
+            response = self.provider.create_message(
                 model=self.config.model,
                 max_tokens=self.config.max_tokens,
                 temperature=self.config.temperature,
@@ -298,7 +299,7 @@ class OpenClawAgent:
             if self._shutdown or self.cost.over_budget:
                 break
 
-            response = self.client.messages.create(
+            response = self.provider.create_message(
                 model=self.config.model,
                 max_tokens=self.config.max_tokens,
                 temperature=self.config.temperature,

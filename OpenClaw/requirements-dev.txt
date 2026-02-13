@@ -1,0 +1,4 @@
+# OpenClaw development/test dependencies
+-r requirements.txt
+pytest>=8.0
+pytest-cov>=4.1

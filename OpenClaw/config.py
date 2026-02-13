@@ -15,11 +15,16 @@ class OpenClawConfig:
                    str(Path(__file__).resolve().parent.parent))
     ))
 
-    # LLM
+    # LLM provider: "anthropic" or "local" (Ollama / OpenAI-compatible)
+    provider: str = os.getenv("OPENCLAW_PROVIDER", "anthropic")
     model: str = os.getenv("OPENCLAW_MODEL", "claude-sonnet-4-5-20250929")
     api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
     max_tokens: int = 8192
     temperature: float = 0.0
+
+    # Local LLM settings (used when provider == "local")
+    local_api_base: str = os.getenv("OPENCLAW_LOCAL_API_BASE", "http://localhost:11434/v1")
+    local_api_key: str = os.getenv("OPENCLAW_LOCAL_API_KEY", "ollama")
 
     # Budget
     daily_budget: float = float(os.getenv("OPENCLAW_BUDGET", "5.00"))
@@ -78,8 +83,12 @@ class OpenClawConfig:
     def validate(self) -> list[str]:
         """Return list of config errors, empty if valid."""
         errors = []
-        if not self.api_key:
+        if self.provider == "anthropic" and not self.api_key:
             errors.append("ANTHROPIC_API_KEY is not set")
+        if self.provider == "local" and not self.local_api_base:
+            errors.append("OPENCLAW_LOCAL_API_BASE is not set")
+        if self.provider not in ("anthropic", "local"):
+            errors.append(f"Unknown provider: {self.provider} (use 'anthropic' or 'local')")
         if not self.workspace_root.exists():
             errors.append(f"Workspace root does not exist: {self.workspace_root}")
         if self.daily_budget <= 0:
