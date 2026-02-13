@@ -1,0 +1,38 @@
+name: Build AgentUI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            workload: maui
+            target_framework: net8.0-maccatalyst
+          - os: windows-latest
+            workload: maui
+            target_framework: net8.0-windows10.0.19041.0
+          - os: ubuntu-latest
+            workload: maui-android
+            target_framework: net8.0-android
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install MAUI workload
+        run: dotnet workload install ${{ matrix.workload }}
+
+      - name: Build
+        run: dotnet build AgentUI/AgentUI.csproj -f ${{ matrix.target_framework }}
