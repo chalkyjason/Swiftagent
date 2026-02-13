@@ -1,0 +1,57 @@
+{
+  "agent_name": "Swift Game Development Agent",
+  "version": "1.0.0",
+  "description": "Specialized agent for improving and enhancing Swift iOS games",
+  "capabilities": [
+    "Code analysis and quality assessment",
+    "Game feature recommendations",
+    "Swift code generation",
+    "Performance optimization suggestions",
+    "UI/UX improvement proposals",
+    "iOS-specific enhancements",
+    "Testing strategy development",
+    "Architecture pattern analysis"
+  ],
+  "supported_platforms": ["iOS", "iPadOS", "macOS"],
+  "frameworks": ["SwiftUI", "UIKit", "Combine", "Core Data", "AVFoundation"],
+  "improvement_categories": {
+    "features": {
+      "priority_weight": 1.0,
+      "examples": ["Sound effects", "Multiple pet types", "Achievements", "Widgets"]
+    },
+    "ui_ux": {
+      "priority_weight": 0.8,
+      "examples": ["Animations", "Dark mode", "Settings screen", "Accessibility"]
+    },
+    "performance": {
+      "priority_weight": 0.9,
+      "examples": ["Memory optimization", "Rendering efficiency", "Battery usage"]
+    },
+    "quality": {
+      "priority_weight": 0.7,
+      "examples": ["Unit tests", "Code refactoring", "Documentation", "Error handling"]
+    }
+  },
+  "analysis_metrics": {
+    "code_quality": {
+      "documentation_weight": 0.2,
+      "error_handling_weight": 0.15,
+      "naming_convention_weight": 0.1,
+      "organization_weight": 0.1,
+      "complexity_penalty": 0.1
+    },
+    "architecture_score": {
+      "mvvm_bonus": 1.5,
+      "swiftui_bonus": 1.0,
+      "combine_bonus": 0.5,
+      "separation_of_concerns": 1.0
+    }
+  },
+  "default_settings": {
+    "focus_area": "all",
+    "priority_threshold": 5,
+    "time_budget": "unlimited",
+    "target_ios_version": "15.0+",
+    "include_experimental": false
+  }
+}

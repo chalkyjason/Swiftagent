@@ -1,0 +1,33 @@
+{
+  "goose_integration": {
+    "enabled": true,
+    "workspace_path": "./SwiftTamagotchi",
+    "safe_file_extensions": [".swift", ".py", ".json", ".md", ".txt", ".yml", ".yaml", ".toml"],
+    "max_context_files": 10,
+    "backup_on_write": true,
+    "git_operations": {
+      "auto_commit": false,
+      "commit_message_template": "[Agent] {action}: {description}",
+      "safe_operations_only": true
+    }
+  },
+  "llm_settings": {
+    "task_types": {
+      "analysis": "Comprehensive code and architecture analysis",
+      "code_generation": "Swift code generation with best practices",
+      "code_review": "Quality and style review of changes",
+      "general": "General programming and design questions"
+    },
+    "context_management": {
+      "max_session_history": 10,
+      "include_git_status": true,
+      "include_file_structure": true
+    }
+  },
+  "safety": {
+    "workspace_sandboxing": true,
+    "file_extension_validation": true,
+    "path_traversal_protection": true,
+    "backup_before_changes": true
+  }
+}
