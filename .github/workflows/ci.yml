@@ -37,13 +37,13 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "9.0.x"
 
       - name: Install MAUI workload
-        run: dotnet workload install maui
+        run: dotnet workload install maui-android
 
       - name: Restore dependencies
         run: dotnet restore AgentUI/AgentUI.csproj
 
       - name: Build
-        run: dotnet build AgentUI/AgentUI.csproj --no-restore -f net8.0-android
+        run: dotnet build AgentUI/AgentUI.csproj --no-restore -f net9.0-android

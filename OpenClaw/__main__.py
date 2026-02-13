@@ -50,7 +50,7 @@ def main():
     )
     parser.add_argument(
         "--local-model", type=str, default=None,
-        help="Local model name (e.g. qwen2.5:14b, llama3.1:8b, deepseek-coder-v2)"
+        help="Local model name (e.g. llama3.1:8b, llama3.2:3b, codellama:13b)"
     )
     parser.add_argument(
         "--local-api-base", type=str, default=None,
@@ -79,7 +79,7 @@ def main():
         config.cost_per_input_token = 0.0
         config.cost_per_output_token = 0.0
         if not args.local_model and not args.model:
-            config.model = "qwen2.5:14b"
+            config.model = "llama3.1:8b"
     if args.local_model:
         config.provider = "local"
         config.model = args.local_model
