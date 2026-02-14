@@ -34,15 +34,15 @@ Swiftagent/
 | Component | Required Version | Install Guide |
 |-----------|-----------------|---------------|
 | Python | 3.10+ | https://python.org |
-| .NET SDK | 9.0+ | https://dotnet.microsoft.com/download |
-| .NET MAUI workload | 9.0+ | `dotnet workload install maui` |
+| .NET SDK | 8.0+ | https://dotnet.microsoft.com/download |
+| .NET MAUI workload | 8.0+ | `dotnet workload install maui` |
 | Docker & Docker Compose | latest | https://docs.docker.com/get-docker/ |
 | Git | 2.x+ | https://git-scm.com |
 
 **Platform-specific requirements:**
 
-- **Windows**: Visual Studio 2022 17.12+ with the `.NET MAUI` workload, or the .NET 9 SDK with MAUI workload installed via CLI.
-- **macOS**: Xcode 16+ (for iOS/Mac Catalyst builds) and the .NET 9 SDK.
+- **Windows**: Visual Studio 2022 17.8+ with the `.NET MAUI` workload, or the .NET 8 SDK with MAUI workload installed via CLI.
+- **macOS**: Xcode 15+ (for iOS/Mac Catalyst builds) and the .NET 8 SDK.
 - **Linux**: MAUI builds target Android only on Linux. You need the Android SDK and JDK 17+.
 
 ---
@@ -78,36 +78,36 @@ Choose the target platform for your OS:
 
 ```bash
 # Build and run for Windows
-dotnet build -f net9.0-windows10.0.19041.0
-dotnet run -f net9.0-windows10.0.19041.0
+dotnet build -f net8.0-windows10.0.19041.0
+dotnet run -f net8.0-windows10.0.19041.0
 ```
 
 #### macOS (Mac Catalyst)
 
 ```bash
 # Build and run for Mac Catalyst
-dotnet build -f net9.0-maccatalyst
-dotnet run -f net9.0-maccatalyst
+dotnet build -f net8.0-maccatalyst
+dotnet run -f net8.0-maccatalyst
 ```
 
 #### iOS (from macOS)
 
 ```bash
 # Build for iOS simulator
-dotnet build -f net9.0-ios
+dotnet build -f net8.0-ios
 
 # Run on iOS simulator
-dotnet run -f net9.0-ios
+dotnet run -f net8.0-ios
 ```
 
 #### Android
 
 ```bash
 # Build for Android
-dotnet build -f net9.0-android
+dotnet build -f net8.0-android
 
 # Deploy to connected device or emulator
-dotnet run -f net9.0-android
+dotnet run -f net8.0-android
 ```
 
 ### Step 5: Verify the app
