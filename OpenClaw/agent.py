@@ -1,7 +1,8 @@
 """OpenClaw Agent — autonomous multi-agent task orchestrator.
 
-Connects to the Claude API, uses skills (tools) to manage tasks,
-and coordinates with Claude CLI and Goose for multi-agent execution.
+Connects to the Claude API (or a local LLM via Ollama), uses skills (tools) to
+manage tasks, and coordinates with delegated agents (Claude CLI, Goose, Aider,
+Codex, Cline) for multi-agent execution.
 """
 
 import json
