@@ -42,6 +42,18 @@ def main():
         "--enable-goose", action="store_true",
         help="Enable Goose agent delegation"
     )
+    parser.add_argument(
+        "--enable-aider", action="store_true",
+        help="Enable Aider (AI pair programming) agent delegation"
+    )
+    parser.add_argument(
+        "--enable-codex", action="store_true",
+        help="Enable OpenAI Codex CLI agent delegation"
+    )
+    parser.add_argument(
+        "--enable-cline", action="store_true",
+        help="Enable Cline (autonomous coding) agent delegation"
+    )
 
     # Local LLM options
     parser.add_argument(
@@ -72,6 +84,12 @@ def main():
         config.claude_cli_enabled = True
     if args.enable_goose:
         config.goose_enabled = True
+    if args.enable_aider:
+        config.aider_enabled = True
+    if args.enable_codex:
+        config.codex_enabled = True
+    if args.enable_cline:
+        config.cline_enabled = True
 
     # Local LLM config
     if args.local:

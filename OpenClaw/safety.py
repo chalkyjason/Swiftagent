@@ -46,6 +46,9 @@ ALLOWED_PREFIXES = [
     "jq", "yq",
     "goose",
     "claude",
+    "aider",
+    "codex",
+    "cline",
 ]
 
 

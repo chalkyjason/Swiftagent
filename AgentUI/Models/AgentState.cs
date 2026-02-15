@@ -94,4 +94,7 @@ public class AgentConfig
     public int MaxContextTokens { get; set; } = 100_000;
     public bool ClaudeCliEnabled { get; set; }
     public bool GooseEnabled { get; set; }
+    public bool AiderEnabled { get; set; }
+    public bool CodexEnabled { get; set; }
+    public bool ClineEnabled { get; set; }
 }

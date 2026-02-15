@@ -271,6 +271,9 @@ Options:
   --max-iterations INT     Override max task iterations
   --enable-claude-cli     Enable Claude CLI agent delegation
   --enable-goose          Enable Goose agent delegation
+  --enable-aider          Enable Aider (AI pair programming) agent delegation
+  --enable-codex          Enable OpenAI Codex CLI agent delegation
+  --enable-cline          Enable Cline (autonomous coding) agent delegation
   --local                 Use local LLM via Ollama instead of Anthropic
   --local-model TEXT       Local model name (e.g. llama3.1:8b, codellama:13b)
   --local-api-base TEXT    Local LLM API URL (default: http://localhost:11434/v1)
@@ -318,6 +321,30 @@ Task format in `BACKLOG.md`:
 - Install: https://github.com/block/goose
 - Enable: `GOOSE_ENABLED=true` or `--enable-goose`
 
+### Aider (Delegated)
+- AI pair programmer with Git-first safety (auto-commits, easy rollback)
+- Edits files in-place, supports 100+ languages, works with any LLM
+- Safe: only edits files, does not execute arbitrary shell commands
+- Install: `pip install aider-chat`
+- Enable: `AIDER_ENABLED=true` or `--enable-aider`
+- GitHub: https://github.com/Aider-AI/aider (~39k stars, Apache 2.0)
+
+### Codex CLI (Delegated)
+- OpenAI's sandboxed coding agent with OS-level security (Seatbelt/Landlock)
+- Best-in-class sandboxing: filesystem and network access restricted by default
+- Auto-edit mode for autonomous file changes within the workspace
+- Install: `npm install -g @openai/codex`
+- Enable: `CODEX_ENABLED=true` or `--enable-codex`
+- GitHub: https://github.com/openai/codex (~60k stars, Apache 2.0)
+
+### Cline (Delegated)
+- Autonomous multi-step coding agent that plans, executes, and self-corrects
+- Supports any LLM backend including local models via Ollama
+- Fully autonomous mode with `-y` flag, human-approval by default
+- Install: `npm install -g cline`
+- Enable: `CLINE_ENABLED=true` or `--enable-cline`
+- GitHub: https://github.com/cline/cline (~52k stars, Apache 2.0)
+
 ---
 
 ## Configuration Reference
@@ -337,6 +364,12 @@ Task format in `BACKLOG.md`:
 | `CLAUDE_CLI_PATH` | `claude` | Path to Claude CLI binary |
 | `GOOSE_ENABLED` | `false` | Enable Goose agent |
 | `GOOSE_PATH` | `goose` | Path to Goose CLI binary |
+| `AIDER_ENABLED` | `false` | Enable Aider agent |
+| `AIDER_PATH` | `aider` | Path to Aider CLI binary |
+| `CODEX_ENABLED` | `false` | Enable Codex CLI agent |
+| `CODEX_PATH` | `codex` | Path to Codex CLI binary |
+| `CLINE_ENABLED` | `false` | Enable Cline agent |
+| `CLINE_PATH` | `cline` | Path to Cline CLI binary |
 
 ---
 

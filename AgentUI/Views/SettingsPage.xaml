@@ -96,6 +96,35 @@
                 </VerticalStackLayout>
             </Frame>
 
+            <!-- Agent Delegation -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="AGENT DELEGATION" Style="{StaticResource CardTitle}" />
+
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
+                        <Label Text="Claude CLI" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding ClaudeCliEnabled}" />
+
+                        <Label Grid.Row="1" Text="Goose" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Switch Grid.Row="1" Grid.Column="1" IsToggled="{Binding GooseEnabled}" />
+
+                        <Label Grid.Row="2" Text="Aider" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Switch Grid.Row="2" Grid.Column="1" IsToggled="{Binding AiderEnabled}" />
+
+                        <Label Grid.Row="3" Text="Codex CLI" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Switch Grid.Row="3" Grid.Column="1" IsToggled="{Binding CodexEnabled}" />
+
+                        <Label Grid.Row="4" Text="Cline" FontSize="14"
+                               TextColor="{StaticResource SecondaryText}" VerticalTextAlignment="Center" />
+                        <Switch Grid.Row="4" Grid.Column="1" IsToggled="{Binding ClineEnabled}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
             <!-- Action Buttons -->
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                 <Button Text="Reset" Command="{Binding ResetCommand}"

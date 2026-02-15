@@ -34,7 +34,7 @@ public partial class BacklogViewModel : ObservableObject
     {
         "General", "Backend", "Frontend", "DevOps", "Testing", "Docs", "Bug Fix", "Refactor", "Research"
     };
-    public List<string> Agents { get; } = new() { "any", "openclaw", "claude", "goose" };
+    public List<string> Agents { get; } = new() { "any", "openclaw", "claude", "goose", "aider", "codex", "cline" };
 
     public BacklogViewModel(IBacklogService backlogService)
     {

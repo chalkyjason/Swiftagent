@@ -100,6 +100,12 @@ class OpenClawAgent:
             agents["claude_cli"] = "enabled"
         if self.config.goose_enabled:
             agents["goose"] = "enabled"
+        if self.config.aider_enabled:
+            agents["aider"] = "enabled"
+        if self.config.codex_enabled:
+            agents["codex"] = "enabled"
+        if self.config.cline_enabled:
+            agents["cline"] = "enabled"
 
         status = {
             "connection_state": "connected",
@@ -144,6 +150,9 @@ class OpenClawAgent:
         logger.info(f"Dry run: {self.config.dry_run}")
         logger.info(f"Claude CLI: {'enabled' if self.config.claude_cli_enabled else 'disabled'}")
         logger.info(f"Goose: {'enabled' if self.config.goose_enabled else 'disabled'}")
+        logger.info(f"Aider: {'enabled' if self.config.aider_enabled else 'disabled'}")
+        logger.info(f"Codex CLI: {'enabled' if self.config.codex_enabled else 'disabled'}")
+        logger.info(f"Cline: {'enabled' if self.config.cline_enabled else 'disabled'}")
         logger.info("Initialization complete.")
 
         # Write skills.json for the MAUI UI
