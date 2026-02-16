@@ -214,24 +214,30 @@ class OpenClawAgent:
         """Execute a single task via agentic tool-use loop."""
         self.conversation = [{"role": "user", "content": task}]
         tools = get_skill_schemas()
+        turns_completed = 0
 
         for turn in range(50):
             if self._shutdown or self.cost.over_budget:
                 break
 
-            response = self.provider.create_message(
-                model=self.config.model,
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                system=SYSTEM_PROMPT,
-                tools=tools,
-                messages=self.conversation,
-            )
+            try:
+                response = self.provider.create_message(
+                    model=self.config.model,
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    system=SYSTEM_PROMPT,
+                    tools=tools,
+                    messages=self.conversation,
+                )
+            except Exception as e:
+                logger.error(f"LLM API call failed: {e}", exc_info=True)
+                break
 
             self.cost.record_usage(
                 response.usage.input_tokens,
                 response.usage.output_tokens,
             )
+            turns_completed = turn + 1
 
             assistant_content = []
             tool_results = []
@@ -272,9 +278,15 @@ class OpenClawAgent:
                 logger.info("Task completed.")
                 break
 
-        logger.info(f"Task finished after {turn + 1} turns")
+        logger.info(f"Task finished after {turns_completed} turns")
 
     # -- Scan mode --
+
+    # Skills allowed during read-only scan mode.
+    SCAN_ALLOWED_SKILLS = frozenset({
+        "file_read", "file_list", "search_code",
+        "task_list", "git_status", "git_diff", "agent_status",
+    })
 
     def _run_scan(self):
         """Scan the repo for improvements without modifying anything."""
@@ -299,14 +311,18 @@ class OpenClawAgent:
             if self._shutdown or self.cost.over_budget:
                 break
 
-            response = self.provider.create_message(
-                model=self.config.model,
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                system=SYSTEM_PROMPT,
-                tools=tools,
-                messages=self.conversation,
-            )
+            try:
+                response = self.provider.create_message(
+                    model=self.config.model,
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    system=SYSTEM_PROMPT,
+                    tools=tools,
+                    messages=self.conversation,
+                )
+            except Exception as e:
+                logger.error(f"LLM API call failed during scan: {e}", exc_info=True)
+                break
 
             self.cost.record_usage(
                 response.usage.input_tokens,
@@ -324,9 +340,7 @@ class OpenClawAgent:
                 elif block.type == "tool_use":
                     has_tool_use = True
                     assistant_content.append(block)
-                    if block.name in ("file_read", "file_list", "search_code",
-                                      "task_list", "git_status", "git_diff",
-                                      "agent_status"):
+                    if block.name in self.SCAN_ALLOWED_SKILLS:
                         result = self.executor.execute(block.name, block.input)
                     else:
                         result = f"BLOCKED: Skill '{block.name}' not allowed in scan mode"

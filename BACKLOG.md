@@ -8,6 +8,33 @@ OpenClaw, Claude CLI, or Goose.
 
 ## Pending
 
+- [ ] [P1] [Testing] Add MAUI UI unit tests for ViewModels and Services @agent:openclaw
+  > AgentUI has zero test coverage — ViewModels contain business logic that should be tested
+- [ ] [P1] [Agent] Add conversation context pruning to prevent unbounded memory growth @agent:openclaw
+  > _run_task appends to self.conversation indefinitely; long tasks will exceed context limits
+- [ ] [P1] [Agent] Validate LLM response structure before accessing fields @agent:openclaw
+  > response.content could be empty or malformed from local LLM providers
+- [ ] [P2] [Agent] Add structured logging with JSON output for machine-parseable logs @agent:openclaw
+  > Current text logs are hard to query; JSON logs would enable dashboarding and alerting
+- [ ] [P2] [DevOps] Add health-check endpoint or heartbeat file for external monitoring @agent:openclaw
+  > No way for external systems to know if the agent process is alive vs hung
+- [ ] [P2] [Agent] Support task dependencies in BACKLOG.md (blocked-by field) @agent:openclaw
+  > Tasks can't express ordering constraints; agents may pick up tasks with unmet prerequisites
+- [ ] [P2] [Security] Sanitize task input passed to subprocess in agent_delegate @agent:openclaw
+  > Task strings are interpolated into shell commands with only quoting — shell metacharacters could escape
+- [ ] [P2] [UI] Add error banners to MAUI dashboard when agent IPC files are stale or missing @agent:openclaw
+  > UI silently shows stale data when agent is not running; user has no indication
+- [ ] [P2] [Testing] Add SwiftTamagotchi XCTest unit tests for GameLogic and SaveManager @agent:openclaw
+  > iOS game has no test coverage; pet stat calculations and save/load should be verified
+- [ ] [P3] [Agent] Add per-task cost tracking alongside daily budget @agent:openclaw
+  > Current cost tracker only tracks daily totals; no visibility into individual task costs
+- [ ] [P3] [Docs] Write deployment and distribution guide for MAUI app and iOS game @agent:openclaw
+  > No documentation on how to build release artifacts or distribute to users
+- [ ] [P3] [Agent] Add configurable skill enable/disable via config or environment @agent:openclaw
+  > All 14 skills are always active; operators may want to restrict capabilities per deployment
+- [ ] [P3] [DevOps] Add Docker-based integration test runner for CI @agent:openclaw
+  > Tests currently only run bare Python; a containerized runner would ensure reproducibility
+
 ## Blocked
 
 ## Completed

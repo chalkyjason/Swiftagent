@@ -68,7 +68,9 @@ class SafetyGuard:
         try:
             resolved = Path(path).resolve()
             workspace = self.config.workspace_root.resolve()
-            return str(resolved).startswith(str(workspace))
+            # Use Path.is_relative_to (3.9+) to avoid false positives from
+            # string prefix matching (e.g. /workspace-evil vs /workspace).
+            return resolved == workspace or resolved.is_relative_to(workspace)
         except (ValueError, OSError):
             return False
 
