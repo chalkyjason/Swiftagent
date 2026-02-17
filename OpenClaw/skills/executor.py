@@ -71,10 +71,14 @@ class SkillExecutor:
         if self.config.dry_run:
             return f"[DRY RUN] Would execute: {command}"
 
-        result = subprocess.run(
-            command, shell=True, capture_output=True, text=True,
-            cwd=str(working_dir), timeout=120
-        )
+        try:
+            result = subprocess.run(
+                command, shell=True, capture_output=True, text=True,
+                cwd=str(working_dir), timeout=120
+            )
+        except subprocess.TimeoutExpired:
+            return "ERROR: Command timed out after 120 seconds"
+
         output = result.stdout
         if result.stderr:
             output += f"\nSTDERR:\n{result.stderr}"
@@ -177,10 +181,12 @@ class SkillExecutor:
         if self.config.dry_run:
             return f"[DRY RUN] Would commit {len(files)} files: {message}"
         for f in files:
-            subprocess.run(
-                f"git add {f}", shell=True,
+            add_result = subprocess.run(
+                ["git", "add", "--", f], capture_output=True, text=True,
                 cwd=str(self.config.workspace_root)
             )
+            if add_result.returncode != 0:
+                return f"GIT ADD FAILED for {f}:\n{add_result.stderr.strip()}"
         result = subprocess.run(
             ["git", "commit", "-m", message],
             capture_output=True, text=True,
@@ -412,29 +418,35 @@ class SkillExecutor:
 
     def _run_claude_cli(self, task: str, working_dir: Path) -> str:
         """Run a task via Claude Code CLI with retry."""
-        cmd = f'{self.config.claude_cli_path} --print "{task}"'
         logger.info(f"Delegating to Claude CLI: {task[:80]}...")
 
         if self.config.dry_run:
             return f"[DRY RUN] Would delegate to Claude CLI: {task}"
 
-        try:
-            return self._run_subprocess_with_retry(cmd, working_dir, "Claude CLI")
-        except FileNotFoundError:
-            return f"ERROR: Claude CLI not found at '{self.config.claude_cli_path}'. Install with: npm install -g @anthropic-ai/claude-code"
+        if not shutil.which(self.config.claude_cli_path):
+            return (
+                f"ERROR: Claude CLI not found at '{self.config.claude_cli_path}'. "
+                "Install with: npm install -g @anthropic-ai/claude-code"
+            )
+
+        cmd = f'{self.config.claude_cli_path} --print "{task}"'
+        return self._run_subprocess_with_retry(cmd, working_dir, "Claude CLI")
 
     def _run_goose(self, task: str, working_dir: Path) -> str:
         """Run a task via Goose agent with retry."""
-        cmd = f'{self.config.goose_path} run "{task}"'
         logger.info(f"Delegating to Goose: {task[:80]}...")
 
         if self.config.dry_run:
             return f"[DRY RUN] Would delegate to Goose: {task}"
 
-        try:
-            return self._run_subprocess_with_retry(cmd, working_dir, "Goose")
-        except FileNotFoundError:
-            return f"ERROR: Goose not found at '{self.config.goose_path}'. Install from: https://github.com/block/goose"
+        if not shutil.which(self.config.goose_path):
+            return (
+                f"ERROR: Goose not found at '{self.config.goose_path}'. "
+                "Install from: https://github.com/block/goose"
+            )
+
+        cmd = f'{self.config.goose_path} run "{task}"'
+        return self._run_subprocess_with_retry(cmd, working_dir, "Goose")
 
     def _agent_status(self, _inputs: dict) -> str:
         """Check status of all configured agents."""
