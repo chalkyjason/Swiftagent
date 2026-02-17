@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="xunit" Version="2.7.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7" />
+    <PackageReference Include="Moq" Version="4.20.70" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+  </ItemGroup>
+
+  <!--
+    The test project shares source files from the main project instead of referencing
+    the MAUI project directly (MAUI targets are not runnable in a plain net8.0 test runner).
+    Files are linked rather than copied so they stay in sync.
+  -->
+  <ItemGroup>
+    <Compile Include="../AgentUI/Models/AgentState.cs" Link="Models/AgentState.cs" />
+    <Compile Include="../AgentUI/Models/OpenClawModels.cs" Link="Models/OpenClawModels.cs" />
+    <Compile Include="../AgentUI/Services/IAgentService.cs" Link="Services/IAgentService.cs" />
+    <Compile Include="../AgentUI/Services/IBacklogService.cs" Link="Services/IBacklogService.cs" />
+    <Compile Include="../AgentUI/Services/IOpenClawService.cs" Link="Services/IOpenClawService.cs" />
+    <Compile Include="../AgentUI/ViewModels/BacklogViewModel.cs" Link="ViewModels/BacklogViewModel.cs" />
+    <Compile Include="../AgentUI/ViewModels/DashboardViewModel.cs" Link="ViewModels/DashboardViewModel.cs" />
+  </ItemGroup>
+
+</Project>

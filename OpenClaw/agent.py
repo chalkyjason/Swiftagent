@@ -13,6 +13,10 @@ import time
 from datetime import datetime, date
 from pathlib import Path
 
+# Max messages to keep in conversation history (initial task + this many recent turns).
+# Keeps memory bounded for long tasks and avoids blowing context limits on small models.
+_MAX_CONTEXT_MESSAGES = 20
+
 from .config import OpenClawConfig
 from .filelock import atomic_write_json
 from .prompts import SYSTEM_PROMPT, SCAN_PROMPT
@@ -129,6 +133,35 @@ class OpenClawAgent:
             "timestamp": datetime.now().isoformat(),
         }
         atomic_write_json(self.config.status_path, status)
+        self._write_heartbeat()
+
+    def _write_heartbeat(self):
+        """Write a timestamped heartbeat file so external monitors know the agent is alive."""
+        heartbeat = {
+            "alive": True,
+            "timestamp": datetime.now().isoformat(),
+            "iteration": self.iteration,
+            "pid": __import__("os").getpid(),
+        }
+        atomic_write_json(
+            self.config.workspace_root / "openclaw_heartbeat.json",
+            heartbeat,
+        )
+
+    def _prune_conversation(self):
+        """Trim self.conversation to prevent unbounded context growth.
+
+        Always keeps the first message (the original task) and the most recent
+        _MAX_CONTEXT_MESSAGES - 1 messages. This keeps total tokens predictable
+        even on small local models with 4K–8K context windows.
+        """
+        if len(self.conversation) <= _MAX_CONTEXT_MESSAGES:
+            return
+        first = self.conversation[:1]
+        recent = self.conversation[-(  _MAX_CONTEXT_MESSAGES - 1):]
+        dropped = len(self.conversation) - len(first) - len(recent)
+        logger.debug(f"Context pruned: dropped {dropped} middle messages to stay within limit")
+        self.conversation = first + recent
 
     def initialize(self):
         """Set up the agent: validate config, init API client."""
@@ -230,6 +263,8 @@ class OpenClawAgent:
             if self._shutdown or self.cost.over_budget:
                 break
 
+            self._prune_conversation()
+
             try:
                 response = self.provider.create_message(
                     model=self.config.model,
@@ -321,6 +356,8 @@ class OpenClawAgent:
             if self._shutdown or self.cost.over_budget:
                 break
 
+            self._prune_conversation()
+
             try:
                 response = self.provider.create_message(
                     model=self.config.model,
@@ -372,13 +409,35 @@ class OpenClawAgent:
         logger.info(f"Scan complete. Cost: ${self.cost.cost_today:.4f}")
 
 
+class _JSONFormatter(logging.Formatter):
+    """Emit each log record as a single line of JSON for machine-parseable logs."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload: dict = {
+            "ts": datetime.utcfromtimestamp(record.created).isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
 def _setup_logging(config: OpenClawConfig):
-    """Configure logging to file and console."""
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    """Configure logging to file (plain-text), JSON file, and console."""
     level = getattr(logging, config.log_level.upper(), logging.INFO)
 
+    # Plain-text log (human-readable, tailed by MAUI console page)
     file_handler = logging.FileHandler(config.log_path, mode="a")
-    file_handler.setFormatter(logging.Formatter(log_format))
+    file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    ))
+
+    # JSON log (machine-parseable; grep-able, dashboard-ready)
+    json_log_path = config.workspace_root / "openclaw.json.log"
+    json_handler = logging.FileHandler(json_log_path, mode="a")
+    json_handler.setFormatter(_JSONFormatter())
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter(
@@ -388,4 +447,5 @@ def _setup_logging(config: OpenClawConfig):
     root = logging.getLogger("openclaw")
     root.setLevel(level)
     root.addHandler(file_handler)
+    root.addHandler(json_handler)
     root.addHandler(console_handler)

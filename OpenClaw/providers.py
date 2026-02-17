@@ -253,8 +253,14 @@ class OpenAICompatibleProvider(LLMProvider):
             kwargs["tools"] = openai_tools
 
         response = self.client.chat.completions.create(**kwargs)
+        if not response.choices:
+            raise ValueError("Local LLM returned an empty choices list")
+
         choice = response.choices[0]
         message = choice.message
+
+        if message is None:
+            raise ValueError("Local LLM returned a null message in choices[0]")
 
         # Build normalised content blocks
         content: list[TextBlock | ToolUseBlock] = []
@@ -267,6 +273,10 @@ class OpenAICompatibleProvider(LLMProvider):
                 try:
                     args = json.loads(tc.function.arguments)
                 except (json.JSONDecodeError, TypeError):
+                    logger.warning(
+                        f"Could not parse tool call arguments for '{tc.function.name}', "
+                        "using empty dict"
+                    )
                     args = {}
                 content.append(ToolUseBlock(
                     name=tc.function.name,
@@ -275,9 +285,23 @@ class OpenAICompatibleProvider(LLMProvider):
                 ))
 
         # Map finish reasons
+        finish_reason = getattr(choice, "finish_reason", None)
         stop_reason = "end_turn"
-        if choice.finish_reason == "tool_calls":
+        if finish_reason == "tool_calls":
             stop_reason = "tool_use"
+        elif finish_reason not in ("stop", "tool_calls", None):
+            logger.warning(f"Unexpected finish_reason from local LLM: {finish_reason!r}")
+
+        # If content is completely empty (local model produced nothing), surface a clear error
+        if not content:
+            logger.warning(
+                "Local LLM returned no content and no tool calls "
+                f"(finish_reason={finish_reason!r}). Returning empty-response marker."
+            )
+            content.append(TextBlock(
+                text="[Model returned an empty response. The task may be too complex "
+                     "for this local model. Try a larger model or rephrase the task.]"
+            ))
 
         # Extract usage (some local servers omit this)
         usage = Usage()
