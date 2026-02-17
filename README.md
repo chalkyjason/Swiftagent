@@ -306,13 +306,24 @@ Swiftagent/
 │   ├── providers.py   # LLM provider abstraction (Anthropic + Ollama)
 │   ├── safety.py      # Safety guardrails (sandboxing, command filtering)
 │   ├── prompts/       # System prompts
-│   └── skills/        # 14 tool definitions + executor
+│   ├── skills/        # 14 tool definitions + executor
+│   └── tests/         # ~2,400 lines of pytest coverage
 │
 ├── AgentUI/           # .NET MAUI control panel (optional)
 │   ├── Models/        # Data models
 │   ├── Services/      # Agent service layer
 │   ├── ViewModels/    # MVVM view models
 │   └── Views/         # 7 XAML pages
+│
+├── AgentUI.Tests/     # xUnit tests for MAUI ViewModels (net8.0)
+│
+├── SwiftTamagotchi/   # Native iOS Tamagotchi game (SwiftUI + MVVM)
+│   └── SwiftTamagotchiTests/  # XCTest coverage for Pet and SaveManager
+│
+├── docs/              # Distribution and deployment guides
+│   ├── distribution-openclaw.md  # PyInstaller, wheel, Docker
+│   ├── distribution-maui.md      # macOS, Windows, iOS, Android builds
+│   └── distribution-ios.md       # Xcode archive, TestFlight, sideloading
 │
 ├── docker-compose.yml # Ollama via Docker (Linux/Windows)
 ├── BACKLOG.md         # Task queue
@@ -340,69 +351,80 @@ Swiftagent/
 | All 14 skills | Working | File ops, git, shell, search, delegation |
 | Multi-agent delegation | Working | Aider, Goose, Claude CLI, Codex, Cline |
 | Safety guardrails | Working | Command filtering, sandboxing, budget |
+| LLM response validation | Working | Empty/malformed local LLM responses are caught and surfaced cleanly |
+| Conversation context pruning | Working | Conversation history capped at 20 messages to stay within context limits |
+| Shell injection protection | Working | All agent subprocess calls use `shlex.quote` |
+| Heartbeat file | Working | `openclaw_heartbeat.json` updated on every status write |
+| JSON logging | Working | Structured JSON written to `openclaw.json.log` alongside plain-text log |
 | MAUI dashboard | Working | Reads `openclaw_status.json` and logs |
 | Backlog management | Working | BACKLOG.md parsed and written by agent |
 | Cost/budget tracking | Working | Daily totals, stops at limit |
 | Python test suite | Working | ~2,400 lines covering core agent logic |
+| MAUI ViewModel tests | Working | `AgentUI.Tests` project with BacklogViewModel and Dashboard logic tests |
+| SwiftTamagotchi XCTests | Working | `PetModelTests` and `SaveManagerTests` in `SwiftTamagotchiTests/` |
+| Distribution docs | Written | `docs/distribution-openclaw.md`, `docs/distribution-maui.md`, `docs/distribution-ios.md` |
 
-### Known issues (fix before relying on this in production)
+### Remaining known issues
 
-**P1 — Will cause failures:**
-- **Local LLM response validation**: Local models (Ollama) can return empty or malformed responses. `response.content` is accessed without checking, which will raise an exception mid-task. Tracked in BACKLOG.md.
-- **Unbounded context growth**: `self.conversation` grows indefinitely during long tasks. On models with a 4K–8K context window (common with smaller local models), this will cause the API call to fail mid-task. Tracked in BACKLOG.md.
+**P2 — Important but not blocking:**
+- **MAUI shows stale data silently**: The dashboard does not show an error when `openclaw_status.json` is missing or old. Check `openclaw_heartbeat.json` — if its `timestamp` is more than 60 seconds old, the agent is not running. Tracked in BACKLOG.md.
+- **No task dependency ordering**: Tasks in BACKLOG.md cannot express "this task blocks that one". Agents may start a task before its prerequisites are done. Tracked in BACKLOG.md.
 
-**P2 — Security and reliability:**
-- **Shell injection in `agent_delegate`**: Task strings are passed into subprocess shell commands with quoting only. Shell metacharacters in a task title can break out of the quote. Tracked in BACKLOG.md.
-- **No health monitoring**: There is no heartbeat file or endpoint. External systems (including the MAUI UI) cannot distinguish a running agent from a crashed or hung one. Tracked in BACKLOG.md.
-- **MAUI shows stale data silently**: The dashboard does not show an error when `openclaw_status.json` is missing or old — it just displays the last-known values as if the agent is live. Tracked in BACKLOG.md.
+**P3 — Nice-to-have:**
+- Per-task cost tracking (currently only daily totals).
+- Configurable skill enable/disable per deployment.
+- Docker-based CI integration test runner.
 
 ---
 
 ## Next Steps
 
-Priority order to make this production-ready:
+The critical issues from the last pass have all been addressed. What's left:
 
-### 1. Fix P1 critical issues (do these first)
+### 1. Add MAUI error banner for stale agent status (P2 UI)
 
-```bash
-# These three items in BACKLOG.md:
-# - Validate LLM response structure before accessing fields
-# - Add conversation context pruning
-# - Add MAUI UI unit tests for ViewModels and Services
-python -m OpenClaw --task "Fix P1 backlog items"
+The `openclaw_heartbeat.json` file is now written on every status update. Wire the
+MAUI dashboard to read it and show a warning banner when the heartbeat is more than
+60 seconds old:
+
+```csharp
+// In OpenClawService.cs — check heartbeat age
+var heartbeat = JsonSerializer.Deserialize<HeartbeatData>(File.ReadAllText(heartbeatPath));
+var age = DateTime.Now - DateTime.Parse(heartbeat.Timestamp);
+if (age.TotalSeconds > 60) RaiseStaleWarning();
 ```
 
-**Validate LLM responses** — wrap `response.content` access in a guard that checks for empty or unexpected structures and retries or surfaces a clear error.
+### 2. Add task dependency support in BACKLOG.md (P2 agent)
 
-**Prune conversation context** — before each API call, trim `self.conversation` to keep the last N turns plus the system prompt, keeping total tokens under the model's context limit.
+Extend the task format with a `blocked-by` field so the agent skips a task
+until its prerequisites are marked complete:
 
-### 2. Fix the shell injection in agent_delegate (P2 security)
+```markdown
+- [ ] [P2] [Backend] Deploy to staging @agent:openclaw
+  > blocked-by: Implement CI pipeline
+```
 
-Task strings passed to `subprocess` should be sanitized with `shlex.quote` or restructured to use list-form subprocess args instead of shell string interpolation.
+### 3. Run the new test suites
 
-### 3. Add a heartbeat file (P2 reliability)
+```bash
+# Python core
+pytest OpenClaw/tests/
 
-Write a `openclaw_heartbeat.json` with a timestamp every N seconds. The MAUI UI (and any external monitor) can check this file to know whether the agent is actually alive.
+# MAUI ViewModels (requires .NET 8 SDK)
+cd AgentUI.Tests && dotnet test
 
-### 4. Add structured JSON logging (P2 observability)
+# Swift game (requires Xcode on macOS)
+xcodebuild test \
+  -project SwiftTamagotchi/SwiftTamagotchi.xcodeproj \
+  -scheme SwiftTamagotchi \
+  -destination 'platform=iOS Simulator,name=iPhone 15'
+```
 
-Replace the current plain-text `openclaw.log` with newline-delimited JSON. This makes it trivial to grep for errors, feed logs into dashboards, or write alerting rules.
+### Quick checklist before using in production
 
-### 5. Test coverage gaps (P2/P3)
-
-- **MAUI ViewModels**: Currently zero test coverage. The VM layer contains non-trivial business logic.
-- **SwiftTamagotchi**: GameLogic and SaveManager have no XCTest coverage.
-
-### 6. Distribution guides (P3)
-
-No documentation exists for building release artifacts — `.app` bundles for MAUI on macOS, `.ipa` for iOS, or packaging OpenClaw as a standalone binary. Add a `docs/` directory with platform-specific guides.
-
----
-
-### Quick checklist before using in anger
-
-- [ ] Run `pytest OpenClaw/tests/` — all tests should pass
-- [ ] Try a dry run: `python -m OpenClaw --dry-run --task "refactor foo.py"`
-- [ ] Verify your Ollama model responds: `ollama run llama3.1:8b "hello"`
-- [ ] Check the BACKLOG.md P1 items are addressed if running long tasks
-- [ ] Set a `--budget` limit so a runaway agent can't rack up API costs
+- [ ] `pytest OpenClaw/tests/` — all tests pass
+- [ ] `dotnet test AgentUI.Tests/` — all ViewModel tests pass
+- [ ] Dry run: `python -m OpenClaw --dry-run --task "refactor foo.py"`
+- [ ] Verify Ollama responds: `ollama run llama3.1:8b "hello"`
+- [ ] Set `--budget` to cap cloud API costs
+- [ ] Confirm `openclaw_heartbeat.json` is updating if you want external monitoring

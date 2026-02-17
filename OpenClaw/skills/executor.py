@@ -6,6 +6,7 @@ General-purpose executor with multi-agent delegation and task management.
 import json
 import logging
 import re
+import shlex
 import shutil
 import subprocess
 import time
@@ -441,7 +442,7 @@ class SkillExecutor:
                 "Install with: npm install -g @anthropic-ai/claude-code"
             )
 
-        cmd = f'{self.config.claude_cli_path} --print "{task}"'
+        cmd = f'{self.config.claude_cli_path} --print {shlex.quote(task)}'
         return self._run_subprocess_with_retry(cmd, working_dir, "Claude CLI")
 
     def _run_goose(self, task: str, working_dir: Path) -> str:
@@ -457,7 +458,7 @@ class SkillExecutor:
                 "Install from: https://github.com/block/goose"
             )
 
-        cmd = f'{self.config.goose_path} run "{task}"'
+        cmd = f'{self.config.goose_path} run {shlex.quote(task)}'
         return self._run_subprocess_with_retry(cmd, working_dir, "Goose")
 
     def _run_aider(self, task: str, working_dir: Path) -> str:
@@ -466,7 +467,7 @@ class SkillExecutor:
         Aider edits files in-place and auto-commits to git. Uses --yes for
         non-interactive mode and --no-auto-commits to let OpenClaw handle commits.
         """
-        cmd = f'{self.config.aider_path} --yes --no-auto-commits --message "{task}"'
+        cmd = f'{self.config.aider_path} --yes --no-auto-commits --message {shlex.quote(task)}'
         logger.info(f"Delegating to Aider: {task[:80]}...")
 
         if self.config.dry_run:
@@ -483,7 +484,7 @@ class SkillExecutor:
         Uses --approval-mode auto-edit for autonomous file editing within the
         workspace and --quiet for non-interactive output.
         """
-        cmd = f'{self.config.codex_path} --approval-mode auto-edit --quiet "{task}"'
+        cmd = f'{self.config.codex_path} --approval-mode auto-edit --quiet {shlex.quote(task)}'
         logger.info(f"Delegating to Codex CLI: {task[:80]}...")
 
         if self.config.dry_run:
@@ -499,7 +500,7 @@ class SkillExecutor:
 
         Uses -y for fully autonomous operation (no approval prompts).
         """
-        cmd = f'{self.config.cline_path} -y "{task}"'
+        cmd = f'{self.config.cline_path} -y {shlex.quote(task)}'
         logger.info(f"Delegating to Cline: {task[:80]}...")
 
         if self.config.dry_run:
