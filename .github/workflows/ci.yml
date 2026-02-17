@@ -30,7 +30,7 @@ jobs:
         run: python -m pytest tests/ --cov=. --cov-report=term-missing
 
   dotnet-build:
-    name: AgentUI Build
+    name: AgentUI Build (Android)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Install MAUI workload
+      - name: Install MAUI Android workload
         run: dotnet workload install maui-android
 
       - name: Restore dependencies
@@ -47,3 +47,19 @@ jobs:
 
       - name: Build
         run: dotnet build AgentUI/AgentUI.csproj --no-restore -f net8.0-android
+
+  dotnet-tests:
+    name: AgentUI ViewModel Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore AgentUI.Tests/AgentUI.Tests.csproj
+
+      - name: Test
+        run: dotnet test AgentUI.Tests/AgentUI.Tests.csproj --logger "console;verbosity=normal"

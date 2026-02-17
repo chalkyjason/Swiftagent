@@ -9,13 +9,14 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
-            workload: maui
+            workload: maui-maccatalyst
             target_framework: net8.0-maccatalyst
           - os: windows-latest
-            workload: maui
+            workload: maui-windows
             target_framework: net8.0-windows10.0.19041.0
           - os: ubuntu-latest
             workload: maui-android
