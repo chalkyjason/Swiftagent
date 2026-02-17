@@ -98,4 +98,7 @@ public class OpenClawConfig
     public List<string> AvailablePlatforms { get; set; } = new();
     public bool ClaudeCliEnabled { get; set; }
     public bool GooseEnabled { get; set; }
+    public bool AiderEnabled { get; set; }
+    public bool CodexEnabled { get; set; }
+    public bool ClineEnabled { get; set; }
 }

@@ -240,6 +240,9 @@ public class OpenClawService : IOpenClawService
         var args = "-m OpenClaw";
         if (Config.ClaudeCliEnabled) args += " --enable-claude-cli";
         if (Config.GooseEnabled) args += " --enable-goose";
+        if (Config.AiderEnabled) args += " --enable-aider";
+        if (Config.CodexEnabled) args += " --enable-codex";
+        if (Config.ClineEnabled) args += " --enable-cline";
 
         var startInfo = new System.Diagnostics.ProcessStartInfo
         {

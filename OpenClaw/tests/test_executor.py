@@ -409,6 +409,54 @@ class TestAgentDelegate:
         })
         assert "DRY RUN" in result
 
+    def test_aider_disabled(self, executor):
+        result = executor.execute("agent_delegate", {
+            "agent": "aider",
+            "task": "do something",
+        })
+        assert "ERROR" in result
+        assert "not enabled" in result.lower()
+
+    def test_aider_dry_run(self, dry_executor, workspace):
+        dry_executor.config.aider_enabled = True
+        result = dry_executor.execute("agent_delegate", {
+            "agent": "aider",
+            "task": "test task",
+        })
+        assert "DRY RUN" in result
+
+    def test_codex_disabled(self, executor):
+        result = executor.execute("agent_delegate", {
+            "agent": "codex",
+            "task": "do something",
+        })
+        assert "ERROR" in result
+        assert "not enabled" in result.lower()
+
+    def test_codex_dry_run(self, dry_executor, workspace):
+        dry_executor.config.codex_enabled = True
+        result = dry_executor.execute("agent_delegate", {
+            "agent": "codex",
+            "task": "test task",
+        })
+        assert "DRY RUN" in result
+
+    def test_cline_disabled(self, executor):
+        result = executor.execute("agent_delegate", {
+            "agent": "cline",
+            "task": "do something",
+        })
+        assert "ERROR" in result
+        assert "not enabled" in result.lower()
+
+    def test_cline_dry_run(self, dry_executor, workspace):
+        dry_executor.config.cline_enabled = True
+        result = dry_executor.execute("agent_delegate", {
+            "agent": "cline",
+            "task": "test task",
+        })
+        assert "DRY RUN" in result
+
 
 # ---------------------------------------------------------------------------
 # Agent status

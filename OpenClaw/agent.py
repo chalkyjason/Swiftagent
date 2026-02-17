@@ -1,7 +1,8 @@
 """OpenClaw Agent — autonomous multi-agent task orchestrator.
 
-Connects to the Claude API, uses skills (tools) to manage tasks,
-and coordinates with Claude CLI and Goose for multi-agent execution.
+Connects to the Claude API (or a local LLM via Ollama), uses skills (tools) to
+manage tasks, and coordinates with delegated agents (Claude CLI, Goose, Aider,
+Codex, Cline) for multi-agent execution.
 """
 
 import json
@@ -100,6 +101,12 @@ class OpenClawAgent:
             agents["claude_cli"] = "enabled"
         if self.config.goose_enabled:
             agents["goose"] = "enabled"
+        if self.config.aider_enabled:
+            agents["aider"] = "enabled"
+        if self.config.codex_enabled:
+            agents["codex"] = "enabled"
+        if self.config.cline_enabled:
+            agents["cline"] = "enabled"
 
         status = {
             "connection_state": "connected",
@@ -144,6 +151,9 @@ class OpenClawAgent:
         logger.info(f"Dry run: {self.config.dry_run}")
         logger.info(f"Claude CLI: {'enabled' if self.config.claude_cli_enabled else 'disabled'}")
         logger.info(f"Goose: {'enabled' if self.config.goose_enabled else 'disabled'}")
+        logger.info(f"Aider: {'enabled' if self.config.aider_enabled else 'disabled'}")
+        logger.info(f"Codex CLI: {'enabled' if self.config.codex_enabled else 'disabled'}")
+        logger.info(f"Cline: {'enabled' if self.config.cline_enabled else 'disabled'}")
         logger.info("Initialization complete.")
 
         # Write skills.json for the MAUI UI

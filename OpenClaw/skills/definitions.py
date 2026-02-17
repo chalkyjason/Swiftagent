@@ -101,7 +101,7 @@ ALL_SKILLS = [
                 "description": {"type": "string", "description": "Detailed description."},
                 "priority": {"type": "string", "enum": ["P1", "P2", "P3"], "description": "P1=high, P2=medium, P3=low."},
                 "category": {"type": "string", "description": "Category (Backend, Frontend, DevOps, etc)."},
-                "agent": {"type": "string", "enum": ["openclaw", "claude", "goose", "any"], "description": "Assigned agent."}
+                "agent": {"type": "string", "enum": ["openclaw", "claude", "goose", "aider", "codex", "cline", "any"], "description": "Assigned agent."}
             },
             "required": ["title", "priority"]
         }
@@ -144,11 +144,11 @@ ALL_SKILLS = [
     },
     {
         "name": "agent_delegate",
-        "description": "Delegate a sub-task to Claude CLI or Goose agent.",
+        "description": "Delegate a sub-task to another coding agent (Claude CLI, Goose, Aider, Codex, or Cline).",
         "input_schema": {
             "type": "object",
             "properties": {
-                "agent": {"type": "string", "enum": ["claude", "goose"], "description": "Target agent."},
+                "agent": {"type": "string", "enum": ["claude", "goose", "aider", "codex", "cline"], "description": "Target agent."},
                 "task": {"type": "string", "description": "Task prompt for the agent."},
                 "working_dir": {"type": "string", "description": "Working dir relative to workspace. Optional."}
             },
@@ -157,7 +157,7 @@ ALL_SKILLS = [
     },
     {
         "name": "agent_status",
-        "description": "Check availability of all agents (OpenClaw, Claude CLI, Goose).",
+        "description": "Check availability of all agents (OpenClaw, Claude CLI, Goose, Aider, Codex, Cline).",
         "input_schema": {"type": "object", "properties": {}}
     },
 ]

@@ -371,6 +371,18 @@ class SkillExecutor:
             if not self.config.goose_enabled:
                 return "ERROR: Goose not enabled. Set GOOSE_ENABLED=true"
             return self._run_goose(task, working_dir)
+        elif agent == "aider":
+            if not self.config.aider_enabled:
+                return "ERROR: Aider not enabled. Set AIDER_ENABLED=true"
+            return self._run_aider(task, working_dir)
+        elif agent == "codex":
+            if not self.config.codex_enabled:
+                return "ERROR: Codex CLI not enabled. Set CODEX_ENABLED=true"
+            return self._run_codex(task, working_dir)
+        elif agent == "cline":
+            if not self.config.cline_enabled:
+                return "ERROR: Cline not enabled. Set CLINE_ENABLED=true"
+            return self._run_cline(task, working_dir)
         else:
             return f"ERROR: Unknown agent: {agent}"
 
@@ -448,6 +460,56 @@ class SkillExecutor:
         cmd = f'{self.config.goose_path} run "{task}"'
         return self._run_subprocess_with_retry(cmd, working_dir, "Goose")
 
+    def _run_aider(self, task: str, working_dir: Path) -> str:
+        """Run a task via Aider (AI pair programming) with retry.
+
+        Aider edits files in-place and auto-commits to git. Uses --yes for
+        non-interactive mode and --no-auto-commits to let OpenClaw handle commits.
+        """
+        cmd = f'{self.config.aider_path} --yes --no-auto-commits --message "{task}"'
+        logger.info(f"Delegating to Aider: {task[:80]}...")
+
+        if self.config.dry_run:
+            return f"[DRY RUN] Would delegate to Aider: {task}"
+
+        try:
+            return self._run_subprocess_with_retry(cmd, working_dir, "Aider")
+        except FileNotFoundError:
+            return f"ERROR: Aider not found at '{self.config.aider_path}'. Install with: pip install aider-chat"
+
+    def _run_codex(self, task: str, working_dir: Path) -> str:
+        """Run a task via OpenAI Codex CLI with retry.
+
+        Uses --approval-mode auto-edit for autonomous file editing within the
+        workspace and --quiet for non-interactive output.
+        """
+        cmd = f'{self.config.codex_path} --approval-mode auto-edit --quiet "{task}"'
+        logger.info(f"Delegating to Codex CLI: {task[:80]}...")
+
+        if self.config.dry_run:
+            return f"[DRY RUN] Would delegate to Codex CLI: {task}"
+
+        try:
+            return self._run_subprocess_with_retry(cmd, working_dir, "Codex CLI")
+        except FileNotFoundError:
+            return f"ERROR: Codex CLI not found at '{self.config.codex_path}'. Install with: npm install -g @openai/codex"
+
+    def _run_cline(self, task: str, working_dir: Path) -> str:
+        """Run a task via Cline (autonomous coding agent) with retry.
+
+        Uses -y for fully autonomous operation (no approval prompts).
+        """
+        cmd = f'{self.config.cline_path} -y "{task}"'
+        logger.info(f"Delegating to Cline: {task[:80]}...")
+
+        if self.config.dry_run:
+            return f"[DRY RUN] Would delegate to Cline: {task}"
+
+        try:
+            return self._run_subprocess_with_retry(cmd, working_dir, "Cline")
+        except FileNotFoundError:
+            return f"ERROR: Cline not found at '{self.config.cline_path}'. Install with: npm install -g cline"
+
     def _agent_status(self, _inputs: dict) -> str:
         """Check status of all configured agents."""
         statuses = []
@@ -488,5 +550,56 @@ class SkillExecutor:
                 statuses.append("Goose: NOT FOUND")
         else:
             statuses.append("Goose: DISABLED (set GOOSE_ENABLED=true)")
+
+        # Aider
+        if self.config.aider_enabled:
+            try:
+                result = subprocess.run(
+                    f"{self.config.aider_path} --version",
+                    shell=True, capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    version = result.stdout.strip()
+                    statuses.append(f"Aider: AVAILABLE ({version})")
+                else:
+                    statuses.append("Aider: NOT FOUND (install: pip install aider-chat)")
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                statuses.append("Aider: NOT FOUND")
+        else:
+            statuses.append("Aider: DISABLED (set AIDER_ENABLED=true)")
+
+        # Codex CLI
+        if self.config.codex_enabled:
+            try:
+                result = subprocess.run(
+                    f"{self.config.codex_path} --version",
+                    shell=True, capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    version = result.stdout.strip()
+                    statuses.append(f"Codex CLI: AVAILABLE ({version})")
+                else:
+                    statuses.append("Codex CLI: NOT FOUND (install: npm install -g @openai/codex)")
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                statuses.append("Codex CLI: NOT FOUND")
+        else:
+            statuses.append("Codex CLI: DISABLED (set CODEX_ENABLED=true)")
+
+        # Cline
+        if self.config.cline_enabled:
+            try:
+                result = subprocess.run(
+                    f"{self.config.cline_path} --version",
+                    shell=True, capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    version = result.stdout.strip()
+                    statuses.append(f"Cline: AVAILABLE ({version})")
+                else:
+                    statuses.append("Cline: NOT FOUND (install: npm install -g cline)")
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                statuses.append("Cline: NOT FOUND")
+        else:
+            statuses.append("Cline: DISABLED (set CLINE_ENABLED=true)")
 
         return "\n".join(statuses)

@@ -50,6 +50,12 @@ class OpenClawConfig:
     goose_path: str = os.getenv("GOOSE_PATH", "goose")
     claude_cli_enabled: bool = os.getenv("CLAUDE_CLI_ENABLED", "false").lower() == "true"
     claude_cli_path: str = os.getenv("CLAUDE_CLI_PATH", "claude")
+    aider_enabled: bool = os.getenv("AIDER_ENABLED", "false").lower() == "true"
+    aider_path: str = os.getenv("AIDER_PATH", "aider")
+    codex_enabled: bool = os.getenv("CODEX_ENABLED", "false").lower() == "true"
+    codex_path: str = os.getenv("CODEX_PATH", "codex")
+    cline_enabled: bool = os.getenv("CLINE_ENABLED", "false").lower() == "true"
+    cline_path: str = os.getenv("CLINE_PATH", "cline")
 
     # Paths (derived)
     @property

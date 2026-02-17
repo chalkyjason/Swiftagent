@@ -2,7 +2,7 @@
 
 This file is used by the autonomous agent system to track and manage tasks.
 Tasks are created via the MAUI app or the OpenClaw agent and executed by
-OpenClaw, Claude CLI, or Goose.
+OpenClaw, Claude CLI, Goose, Aider, Codex, or Cline.
 
 ## In Progress
 
@@ -60,4 +60,4 @@ When processing this backlog:
 - `[ ]` - Pending
 - `[x]` - Completed
 - Priority: `[P1]` High, `[P2]` Medium, `[P3]` Low
-- Agent: `@agent:openclaw`, `@agent:claude`, `@agent:goose`
+- Agent: `@agent:openclaw`, `@agent:claude`, `@agent:goose`, `@agent:aider`, `@agent:codex`, `@agent:cline`

@@ -34,13 +34,26 @@ def main():
         "--max-iterations", type=int, default=None,
         help="Override max task iterations"
     )
+    # Agent delegation (easiest first, API-key-required last)
     parser.add_argument(
-        "--enable-claude-cli", action="store_true",
-        help="Enable Claude CLI agent delegation"
+        "--enable-aider", action="store_true",
+        help="Enable Aider agent (pip install aider-chat)"
     )
     parser.add_argument(
         "--enable-goose", action="store_true",
-        help="Enable Goose agent delegation"
+        help="Enable Goose agent (brew install block/goose/goose)"
+    )
+    parser.add_argument(
+        "--enable-cline", action="store_true",
+        help="Enable Cline agent (npm install -g cline)"
+    )
+    parser.add_argument(
+        "--enable-claude-cli", action="store_true",
+        help="Enable Claude CLI agent (needs ANTHROPIC_API_KEY)"
+    )
+    parser.add_argument(
+        "--enable-codex", action="store_true",
+        help="Enable Codex CLI agent (needs OPENAI_API_KEY)"
     )
 
     # Local LLM options
@@ -72,6 +85,12 @@ def main():
         config.claude_cli_enabled = True
     if args.enable_goose:
         config.goose_enabled = True
+    if args.enable_aider:
+        config.aider_enabled = True
+    if args.enable_codex:
+        config.codex_enabled = True
+    if args.enable_cline:
+        config.cline_enabled = True
 
     # Local LLM config
     if args.local:
