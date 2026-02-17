@@ -1,6 +1,7 @@
 """Entry point: python -m OpenClaw"""
 
 import argparse
+from pathlib import Path
 
 from .agent import OpenClawAgent
 from .config import OpenClawConfig
@@ -9,6 +10,12 @@ from .config import OpenClawConfig
 def main():
     parser = argparse.ArgumentParser(
         description="OpenClaw — autonomous multi-agent task orchestrator"
+    )
+    parser.add_argument(
+        "--project", type=str, default=None,
+        metavar="PATH",
+        help="Path to the project workspace root (default: parent of OpenClaw directory, "
+             "or OPENCLAW_WORKSPACE env var)"
     )
     parser.add_argument(
         "--task", type=str, default=None,
@@ -73,6 +80,11 @@ def main():
     args = parser.parse_args()
 
     config = OpenClawConfig()
+    if args.project:
+        project_path = Path(args.project).expanduser().resolve()
+        if not project_path.exists():
+            parser.error(f"Project path does not exist: {project_path}")
+        config.workspace_root = project_path
     if args.dry_run:
         config.dry_run = True
     if args.model:
