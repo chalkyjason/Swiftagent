@@ -67,9 +67,37 @@ public class OpenClawService : IOpenClawService
         catch { }
     }
 
+    private static readonly TimeSpan StaleThreshold = TimeSpan.FromSeconds(30);
+
     private void LoadStatusFromDisk()
     {
-        if (!File.Exists(_statusPath)) return;
+        if (!File.Exists(_statusPath))
+        {
+            Status.IsStatusFileMissing = true;
+            Status.IsStatusFileStale = false;
+            Status.StaleWarningMessage = "Agent status file not found. Is OpenClaw running?";
+            return;
+        }
+
+        Status.IsStatusFileMissing = false;
+
+        // Check file modification time for staleness
+        var lastWrite = File.GetLastWriteTimeUtc(_statusPath);
+        Status.LastStatusFileUpdate = lastWrite;
+        var age = DateTime.UtcNow - lastWrite;
+        if (age > StaleThreshold)
+        {
+            Status.IsStatusFileStale = true;
+            var ageText = age.TotalMinutes >= 1
+                ? $"{(int)age.TotalMinutes}m {age.Seconds}s"
+                : $"{(int)age.TotalSeconds}s";
+            Status.StaleWarningMessage = $"Agent data is {ageText} old. The agent may have stopped.";
+        }
+        else
+        {
+            Status.IsStatusFileStale = false;
+            Status.StaleWarningMessage = string.Empty;
+        }
 
         try
         {

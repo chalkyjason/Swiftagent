@@ -2,10 +2,9 @@ import SwiftUI
 
 struct StatsView: View {
     @ObservedObject var pet: Pet
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Pet name and level
             HStack {
                 Text("\(pet.name)")
                     .font(.title2)
@@ -15,8 +14,7 @@ struct StatsView: View {
                     .font(.title3)
                     .foregroundColor(.secondary)
             }
-            
-            // Age and status
+
             HStack {
                 Text("Age: \(pet.age)h")
                     .font(.caption)
@@ -29,8 +27,7 @@ struct StatsView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
-            // Stats bars
+
             StatBarView(name: "Hunger", value: pet.hunger, color: .red, icon: "🍎")
             StatBarView(name: "Happiness", value: pet.happiness, color: .yellow, icon: "😊")
             StatBarView(name: "Health", value: pet.health, color: .green, icon: "❤️")
@@ -47,7 +44,7 @@ struct StatBarView: View {
     let value: Double
     let color: Color
     let icon: String
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -61,75 +58,74 @@ struct StatBarView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
-            ZStack(alignment: .leading) {
-                // Background bar
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(height: 8)
-                    .cornerRadius(4)
-                
-                // Progress bar
-                Rectangle()
-                    .fill(color)
-                    .frame(width: CGFloat(value) * 2, height: 8)
-                    .cornerRadius(4)
-                    .animation(.easeInOut(duration: 0.5), value: value)
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 8)
+                        .cornerRadius(4)
+
+                    Rectangle()
+                        .fill(color)
+                        .frame(width: geometry.size.width * CGFloat(value / 100.0), height: 8)
+                        .cornerRadius(4)
+                        .animation(.easeInOut(duration: 0.5), value: value)
+                }
             }
+            .frame(height: 8)
         }
     }
 }
 
 struct DetailedStatsView: View {
     @ObservedObject var pet: Pet
-    @Environment(\.presentationMode) var presentationMode
-    
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Pet display
                     PetView(pet: pet)
                         .frame(height: 200)
-                    
-                    // Detailed stats
+
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Detailed Statistics")
                             .font(.title2)
                             .fontWeight(.bold)
-                        
+
                         DetailedStatRow(icon: "🍎", name: "Hunger", value: pet.hunger, description: getHungerDescription())
                         DetailedStatRow(icon: "😊", name: "Happiness", value: pet.happiness, description: getHappinessDescription())
                         DetailedStatRow(icon: "❤️", name: "Health", value: pet.health, description: getHealthDescription())
                         DetailedStatRow(icon: "⚡", name: "Energy", value: pet.energy, description: getEnergyDescription())
-                        
+
                         Divider()
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Pet Information")
                                 .font(.headline)
-                            
+
                             HStack {
                                 Text("Name:")
                                 Spacer()
                                 Text(pet.name)
                                     .fontWeight(.medium)
                             }
-                            
+
                             HStack {
                                 Text("Age:")
                                 Spacer()
                                 Text("\(pet.age) hours")
                                     .fontWeight(.medium)
                             }
-                            
+
                             HStack {
                                 Text("Level:")
                                 Spacer()
                                 Text("\(pet.level)")
                                     .fontWeight(.medium)
                             }
-                            
+
                             HStack {
                                 Text("Status:")
                                 Spacer()
@@ -139,7 +135,7 @@ struct DetailedStatsView: View {
                                         .fontWeight(.medium)
                                 }
                             }
-                            
+
                             HStack {
                                 Text("Born:")
                                 Spacer()
@@ -153,14 +149,16 @@ struct DetailedStatsView: View {
                 }
             }
             .navigationTitle("Pet Stats")
-            .navigationBarItems(trailing: 
-                Button("Done") {
-                    presentationMode.wrappedValue.dismiss()
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
-            )
+            }
         }
     }
-    
+
     private func getHungerDescription() -> String {
         switch pet.hunger {
         case 80...100: return "Very full and satisfied"
@@ -171,7 +169,7 @@ struct DetailedStatsView: View {
         default: return "Unknown"
         }
     }
-    
+
     private func getHappinessDescription() -> String {
         switch pet.happiness {
         case 80...100: return "Extremely happy and playful"
@@ -182,7 +180,7 @@ struct DetailedStatsView: View {
         default: return "Unknown"
         }
     }
-    
+
     private func getHealthDescription() -> String {
         switch pet.health {
         case 80...100: return "Perfect health"
@@ -193,7 +191,7 @@ struct DetailedStatsView: View {
         default: return "Unknown"
         }
     }
-    
+
     private func getEnergyDescription() -> String {
         switch pet.energy {
         case 80...100: return "Full of energy"
@@ -204,7 +202,7 @@ struct DetailedStatsView: View {
         default: return "Unknown"
         }
     }
-    
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -218,7 +216,7 @@ struct DetailedStatRow: View {
     let name: String
     let value: Double
     let description: String
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -229,7 +227,7 @@ struct DetailedStatRow: View {
                 Text("\(Int(value))/100")
                     .foregroundColor(.secondary)
             }
-            
+
             Text(description)
                 .font(.caption)
                 .foregroundColor(.secondary)

@@ -101,7 +101,8 @@ ALL_SKILLS = [
                 "description": {"type": "string", "description": "Detailed description."},
                 "priority": {"type": "string", "enum": ["P1", "P2", "P3"], "description": "P1=high, P2=medium, P3=low."},
                 "category": {"type": "string", "description": "Category (Backend, Frontend, DevOps, etc)."},
-                "agent": {"type": "string", "enum": ["openclaw", "claude", "goose", "aider", "codex", "cline", "any"], "description": "Assigned agent."}
+                "agent": {"type": "string", "enum": ["openclaw", "claude", "goose", "aider", "codex", "cline", "any"], "description": "Assigned agent."},
+                "blocked_by": {"type": "array", "items": {"type": "string"}, "description": "List of task titles this task depends on. Task will be placed in Blocked section until dependencies are completed."}
             },
             "required": ["title", "priority"]
         }

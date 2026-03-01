@@ -8,10 +8,6 @@ OpenClaw, Claude CLI, Goose, Aider, Codex, or Cline.
 
 ## Pending
 
-- [ ] [P2] [Agent] Support task dependencies in BACKLOG.md (blocked-by field) @agent:openclaw
-  > Tasks can't express ordering constraints; agents may pick up tasks with unmet prerequisites
-- [ ] [P2] [UI] Add error banners to MAUI dashboard when agent IPC files are stale or missing @agent:openclaw
-  > UI silently shows stale data when agent is not running; user has no indication
 - [ ] [P3] [Agent] Add per-task cost tracking alongside daily budget @agent:openclaw
   > Current cost tracker only tracks daily totals; no visibility into individual task costs
 - [ ] [P3] [Agent] Add configurable skill enable/disable via config or environment @agent:openclaw
@@ -37,6 +33,10 @@ OpenClaw, Claude CLI, Goose, Aider, Codex, or Cline.
   > All _run_* methods now use shlex.quote(task) instead of raw string interpolation
 - [x] [P2] [Testing] Add SwiftTamagotchi XCTest unit tests for GameLogic and SaveManager @agent:openclaw
   > PetModelTests.swift and SaveManagerTests.swift added to SwiftTamagotchiTests/
+- [x] [P2] [Agent] Support task dependencies in BACKLOG.md (blocked-by field) @agent:openclaw
+  > task_create now accepts blocked_by array; tasks placed in Blocked section; auto-unblock on completion
+- [x] [P2] [UI] Add error banners to MAUI dashboard when agent IPC files are stale or missing @agent:openclaw
+  > OpenClawService checks file age; DashboardViewModel shows warning banner with stale/missing state
 - [x] [P3] [Docs] Write deployment and distribution guide for MAUI app and iOS game @agent:openclaw
   > docs/distribution-openclaw.md, docs/distribution-maui.md, docs/distribution-ios.md created
 

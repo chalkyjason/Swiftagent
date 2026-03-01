@@ -42,6 +42,12 @@ public class OpenClawStatus
 
     // Multi-agent statuses: key = agent name, value = status string
     public Dictionary<string, string> AgentStatuses { get; set; } = new();
+
+    // IPC file staleness tracking
+    public DateTime? LastStatusFileUpdate { get; set; }
+    public bool IsStatusFileStale { get; set; }
+    public bool IsStatusFileMissing { get; set; }
+    public string StaleWarningMessage { get; set; } = string.Empty;
 }
 
 public class OpenClawSkill

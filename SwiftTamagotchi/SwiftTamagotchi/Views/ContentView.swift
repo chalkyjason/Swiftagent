@@ -3,10 +3,9 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var gameLogic = GameLogic()
     @State private var showingResetAlert = false
-    
+
     var body: some View {
         ZStack {
-            // Background gradient
             LinearGradient(
                 colors: [
                     Color.blue.opacity(0.3),
@@ -17,24 +16,22 @@ struct ContentView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            
+
             VStack(spacing: 20) {
-                // Header
                 VStack(spacing: 8) {
                     Text("🎮 Pixelated Tamagotchi")
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
-                    
+
                     Text("Take care of your virtual pet!")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 .padding(.top)
-                
+
                 Spacer()
-                
-                // Pet Display Area
+
                 VStack(spacing: 15) {
                     PetView(pet: gameLogic.pet)
                         .frame(height: 200)
@@ -44,36 +41,32 @@ struct ContentView: View {
                                 .fill(.ultraThinMaterial)
                                 .shadow(radius: 10)
                         )
-                    
-                    // Death Screen Overlay
+
                     if gameLogic.pet.state == .dead {
                         DeathScreenView(onRestart: {
                             gameLogic.resetPet()
                         })
                     }
                 }
-                
+
                 Spacer()
-                
-                // Stats Section
+
                 StatsView(pet: gameLogic.pet)
                     .padding(.horizontal)
-                
+
                 Spacer()
-                
-                // Action Menu
+
                 MenuView(pet: gameLogic.pet) {
                     gameLogic.savePet()
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 20)
             }
-            
-            // Game Message Overlay
+
             if gameLogic.showMessage {
                 VStack {
                     Spacer()
-                    
+
                     Text(gameLogic.gameMessage)
                         .font(.headline)
                         .foregroundColor(.white)
@@ -83,27 +76,21 @@ struct ContentView: View {
                                 .fill(Color.black.opacity(0.8))
                         )
                         .transition(.scale.combined(with: .opacity))
-                    
+
                     Spacer()
                         .frame(height: 100)
                 }
                 .animation(.spring(), value: gameLogic.showMessage)
             }
         }
-        .navigationBarHidden(true)
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-            gameLogic.pauseGame()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            gameLogic.resumeGame()
-        }
+        .toolbar(.hidden, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .confirmationAction) {
                 Menu {
                     Button("New Pet") {
                         showingResetAlert = true
                     }
-                    
+
                     Button("Save Game") {
                         gameLogic.savePet()
                     }
@@ -121,28 +108,36 @@ struct ContentView: View {
         } message: {
             Text("This will delete your current pet and create a new one. This action cannot be undone.")
         }
+        #if canImport(UIKit)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            gameLogic.pauseGame()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            gameLogic.resumeGame()
+        }
+        #endif
     }
 }
 
 struct DeathScreenView: View {
     let onRestart: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 20) {
             Text("💀")
                 .font(.system(size: 60))
-            
+
             Text("Your pet has passed away...")
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
-            
+
             Text("Don't worry! You can create a new pet and try again.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            
+
             Button("Create New Pet") {
                 onRestart()
             }

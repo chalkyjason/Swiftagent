@@ -40,6 +40,11 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private string _openClawTokens = string.Empty;
     [ObservableProperty] private string _openClawVersion = string.Empty;
 
+    // IPC staleness warning
+    [ObservableProperty] private bool _showStaleWarning;
+    [ObservableProperty] private string _staleWarningMessage = string.Empty;
+    [ObservableProperty] private Color _staleWarningColor = Colors.Transparent;
+
     public ObservableCollection<string> RecentActions { get; } = new();
 
     public DashboardViewModel(IAgentService agentService, IOpenClawService openClawService)
@@ -132,5 +137,12 @@ public partial class DashboardViewModel : ObservableObject
         OpenClawSkills = status.TotalSkillsCount > 0 ? $"{status.ActiveSkillsCount}/{status.TotalSkillsCount}" : (connected ? "0" : "--");
         OpenClawTokens = connected ? $"{status.TokensUsedToday:N0}" : "--";
         OpenClawVersion = !string.IsNullOrEmpty(status.Version) ? status.Version : "--";
+
+        // Stale/missing file warning
+        ShowStaleWarning = status.IsStatusFileStale || status.IsStatusFileMissing;
+        StaleWarningMessage = status.StaleWarningMessage;
+        StaleWarningColor = status.IsStatusFileMissing
+            ? Color.FromArgb("#ff1744")   // Red for missing
+            : Color.FromArgb("#ff9100");  // Orange for stale
     }
 }

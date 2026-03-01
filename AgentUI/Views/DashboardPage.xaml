@@ -15,6 +15,20 @@
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="16">
 
+            <!-- Stale/Missing Data Warning Banner -->
+            <Frame IsVisible="{Binding ShowStaleWarning}"
+                   Padding="12" CornerRadius="8" HasShadow="False"
+                   BorderColor="{Binding StaleWarningColor}"
+                   BackgroundColor="{Binding StaleWarningColor}">
+                <HorizontalStackLayout Spacing="8">
+                    <Label Text="&#x26A0;" FontSize="16" VerticalOptions="Center"
+                           TextColor="White" />
+                    <Label Text="{Binding StaleWarningMessage}"
+                           FontSize="13" FontAttributes="Bold"
+                           TextColor="White" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Frame>
+
             <!-- Agent Status Header -->
             <Frame Style="{StaticResource CardFrame}">
                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">

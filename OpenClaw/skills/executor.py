@@ -205,25 +205,38 @@ class SkillExecutor:
         description = inputs.get("description", "")
         category = inputs.get("category", "General")
         agent = inputs.get("agent", "any")
+        blocked_by = inputs.get("blocked_by", [])
 
         backlog = self.config.backlog_path
         if not backlog.exists():
-            backlog.write_text("# Task Backlog\n\n## Pending\n\n## In Progress\n\n## Completed\n", encoding="utf-8")
+            backlog.write_text(
+                "# Task Backlog\n\n## In Progress\n\n## Pending\n\n## Blocked\n\n## Completed\n",
+                encoding="utf-8",
+            )
 
         content = backlog.read_text(encoding="utf-8")
+
+        # Validate blocked_by references exist in the backlog
+        if blocked_by:
+            for dep in blocked_by:
+                if dep.lower() not in content.lower():
+                    return f"ERROR: Dependency task not found: '{dep}'"
 
         # Build the task line
         agent_tag = f" @agent:{agent}" if agent != "any" else ""
         cat_tag = f" [{category}]" if category else ""
         task_line = f"- [ ] [{priority}]{cat_tag} {title}{agent_tag}"
+        if blocked_by:
+            task_line += f"\n  > blocked-by: {', '.join(blocked_by)}"
         if description:
             task_line += f"\n  > {description}"
 
-        # Insert into Pending section
-        if "## Pending" in content:
-            content = content.replace("## Pending", f"## Pending\n\n{task_line}", 1)
+        # Insert into Blocked section if has dependencies, otherwise Pending
+        target_section = "## Blocked" if blocked_by else "## Pending"
+        if target_section in content:
+            content = content.replace(target_section, f"{target_section}\n\n{task_line}", 1)
         else:
-            content += f"\n## Pending\n\n{task_line}\n"
+            content += f"\n{target_section}\n\n{task_line}\n"
 
         if self.config.dry_run:
             return f"[DRY RUN] Would create task: {title}"
@@ -241,12 +254,14 @@ class SkillExecutor:
             "priority": priority,
             "category": category,
             "agent": agent,
-            "status": "pending",
+            "blocked_by": blocked_by,
+            "status": "blocked" if blocked_by else "pending",
             "created_at": datetime.now().isoformat(),
         }
         task_file.write_text(json.dumps(task_data, indent=2), encoding="utf-8")
 
-        return f"OK: Created task '{title}' [{priority}] assigned to {agent}"
+        status_label = "blocked" if blocked_by else "pending"
+        return f"OK: Created task '{title}' [{priority}] assigned to {agent} ({status_label})"
 
     def _task_list(self, inputs: dict) -> str:
         status_filter = inputs.get("status_filter", "all")
@@ -259,7 +274,7 @@ class SkillExecutor:
         tasks = []
         current_section = ""
 
-        for line in lines:
+        for idx, line in enumerate(lines):
             stripped = line.strip()
             if stripped.startswith("##"):
                 header = stripped.lstrip("#").strip().lower()
@@ -283,7 +298,15 @@ class SkillExecutor:
                 continue
 
             task_text = re.sub(r"^-\s*\[[ xX]\]\s*", "", stripped).strip()
-            tasks.append(f"[{status.upper()}] {task_text}")
+            entry = f"[{status.upper()}] {task_text}"
+
+            # Include blocked-by info from the next line if present
+            if idx + 1 < len(lines):
+                next_line = lines[idx + 1].strip()
+                if next_line.startswith("> blocked-by:"):
+                    entry += f" ({next_line.lstrip('> ').strip()})"
+
+            tasks.append(entry)
 
         return "\n".join(tasks) if tasks else "(no tasks found)"
 
@@ -300,13 +323,13 @@ class SkillExecutor:
         updated = False
 
         for i, line in enumerate(lines):
-            if task_title.lower() in line.lower():
+            if task_title.lower() in line.lower() and line.strip().startswith("- ["):
                 if new_status == "completed":
                     lines[i] = line.replace("- [ ]", "- [x]")
                 elif new_status == "pending":
                     lines[i] = line.replace("- [x]", "- [ ]")
                 if notes:
-                    lines.insert(i + 1, f"  > Note: {notes}")
+                    lines.insert(i + 1, f"  > {notes}")
                 updated = True
                 break
 
@@ -316,9 +339,57 @@ class SkillExecutor:
         if self.config.dry_run:
             return f"[DRY RUN] Would update task to {new_status}"
 
+        # When completing a task, auto-unblock tasks that depend on it
+        unblocked = []
+        if new_status == "completed":
+            unblocked = self._unblock_dependents(lines, task_title)
+
         self.config.backlog_path.write_text("\n".join(lines), encoding="utf-8")
         logger.info(f"Updated task '{task_title}' -> {new_status}")
-        return f"OK: Updated task to {new_status}"
+        result = f"OK: Updated task to {new_status}"
+        if unblocked:
+            result += f"\nAuto-unblocked: {', '.join(unblocked)}"
+        return result
+
+    def _unblock_dependents(self, lines: list[str], completed_title: str) -> list[str]:
+        """Move tasks from Blocked to Pending if all their blockers are completed."""
+        unblocked = []
+        completed_lower = completed_title.lower()
+
+        # Find all completed task titles for checking remaining blockers
+        completed_titles = set()
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("- [x]"):
+                title_text = re.sub(r"^-\s*\[xX?\]\s*", "", stripped)
+                title_text = re.sub(r"\s*@agent:\w+", "", title_text).strip()
+                completed_titles.add(title_text.lower())
+        completed_titles.add(completed_lower)
+
+        i = 0
+        while i < len(lines):
+            stripped = lines[i].strip()
+            # Look for blocked-by lines
+            if stripped.startswith("> blocked-by:") and i > 0:
+                deps_text = stripped.replace("> blocked-by:", "").strip()
+                deps = [d.strip() for d in deps_text.split(",")]
+                remaining = [d for d in deps if d.lower() not in completed_titles]
+
+                if not remaining:
+                    # All blockers completed — remove the blocked-by line
+                    task_line = lines[i - 1]
+                    task_match = re.search(r"\]\s*(?:\[\w+\]\s*)*(.+?)(?:\s*@agent:|\s*$)", task_line)
+                    if task_match:
+                        unblocked.append(task_match.group(1).strip())
+                    lines.pop(i)  # Remove blocked-by line
+                    continue
+                elif completed_lower in [d.lower() for d in deps]:
+                    # Update the blocked-by line with remaining deps
+                    lines[i] = f"  > blocked-by: {', '.join(remaining)}"
+
+            i += 1
+
+        return unblocked
 
     # -- Code search --
 
